@@ -32,11 +32,19 @@ echo "$LOG_PREFIX =========================================="
 echo "$LOG_PREFIX  HighLevel Agent Builder — Installing Skills"
 echo "$LOG_PREFIX =========================================="
 
-# Wait for openclaw to be available
-until command -v openclaw &> /dev/null; do
-  echo "$LOG_PREFIX Waiting for openclaw CLI..."
+# Wait for clawhub to be available (ships with openclaw)
+until command -v clawhub &> /dev/null || command -v openclaw &> /dev/null; do
+  echo "$LOG_PREFIX Waiting for clawhub CLI..."
   sleep 2
 done
+
+# Determine the install command (clawhub is preferred, fallback to openclaw clawhub)
+if command -v clawhub &> /dev/null; then
+  INSTALL_CMD="clawhub"
+else
+  INSTALL_CMD="openclaw clawhub"
+fi
+echo "$LOG_PREFIX Using install command: $INSTALL_CMD install"
 
 # Ensure skills directory exists inside the persistent volume
 mkdir -p "$SKILL_DIR"
@@ -83,7 +91,7 @@ MARKETING_SKILLS=(
 
 for skill in "${MARKETING_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -109,7 +117,7 @@ COMMUNICATION_SKILLS=(
 
 for skill in "${COMMUNICATION_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -130,7 +138,7 @@ CALENDAR_SKILLS=(
 
 for skill in "${CALENDAR_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -148,7 +156,7 @@ SEARCH_SKILLS=(
 
 for skill in "${SEARCH_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -168,7 +176,7 @@ ECOMMERCE_SKILLS=(
 
 for skill in "${ECOMMERCE_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -186,7 +194,7 @@ PRODUCTIVITY_SKILLS=(
 
 for skill in "${PRODUCTIVITY_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -205,7 +213,7 @@ DATA_SKILLS=(
 
 for skill in "${DATA_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
