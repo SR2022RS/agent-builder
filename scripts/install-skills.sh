@@ -7,7 +7,9 @@
 # To force reinstall, delete /data/.skills-installed
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
+# NOTE: intentionally NOT using set -e so individual skill install failures
+# don't crash the entire script. We handle errors per-skill with || fallback.
 
 MARKER="/data/.skills-installed"
 LOG_PREFIX="[skill-installer]"
@@ -81,7 +83,7 @@ MARKETING_SKILLS=(
 
 for skill in "${MARKETING_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -107,7 +109,7 @@ COMMUNICATION_SKILLS=(
 
 for skill in "${COMMUNICATION_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -128,7 +130,7 @@ CALENDAR_SKILLS=(
 
 for skill in "${CALENDAR_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -146,7 +148,7 @@ SEARCH_SKILLS=(
 
 for skill in "${SEARCH_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -166,7 +168,7 @@ ECOMMERCE_SKILLS=(
 
 for skill in "${ECOMMERCE_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -184,7 +186,7 @@ PRODUCTIVITY_SKILLS=(
 
 for skill in "${PRODUCTIVITY_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -203,7 +205,7 @@ DATA_SKILLS=(
 
 for skill in "${DATA_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  openclaw skill install "$skill" 2>/dev/null || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  openclaw skill install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
