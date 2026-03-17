@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Holigenix Agent Builder — Skill Auto-Installer
+# HighLevel Agent Builder — Skill Auto-Installer
 # =============================================================================
 # This script installs curated OpenClaw skills on first boot.
 # Skills persist in the /data volume so they survive redeploys.
@@ -11,6 +11,7 @@ set -euo pipefail
 
 MARKER="/data/.skills-installed"
 LOG_PREFIX="[skill-installer]"
+SKILL_DIR="/data/workspace/skills"
 
 # If already installed, skip
 if [ -f "$MARKER" ]; then
@@ -20,7 +21,7 @@ if [ -f "$MARKER" ]; then
 fi
 
 echo "$LOG_PREFIX =========================================="
-echo "$LOG_PREFIX  Holigenix Agent Builder — Installing Skills"
+echo "$LOG_PREFIX  HighLevel Agent Builder — Installing Skills"
 echo "$LOG_PREFIX =========================================="
 
 # Wait for openclaw to be available
@@ -29,7 +30,14 @@ until command -v openclaw &> /dev/null; do
   sleep 2
 done
 
+# Ensure skills directory exists inside the persistent volume
+mkdir -p "$SKILL_DIR"
+
+# cd into workspace so 'clawhub install' writes to /data/workspace/skills/
+cd /data/workspace
+
 echo "$LOG_PREFIX OpenClaw CLI found. Starting skill installation..."
+echo "$LOG_PREFIX Skills will be installed to: $SKILL_DIR"
 
 # =============================================================================
 # MARKETING & SALES SKILLS
@@ -196,9 +204,14 @@ done
 # MARK INSTALLATION COMPLETE
 # =============================================================================
 echo "$LOG_PREFIX =========================================="
-echo "$LOG_PREFIX  ✅ All skills installed successfully!"
+echo "$LOG_PREFIX  All skills installed successfully!"
 echo "$LOG_PREFIX  Total skills: $(( ${#MARKETING_SKILLS[@]} + ${#COMMUNICATION_SKILLS[@]} + ${#CALENDAR_SKILLS[@]} + ${#SEARCH_SKILLS[@]} + ${#ECOMMERCE_SKILLS[@]} + ${#PRODUCTIVITY_SKILLS[@]} + ${#DATA_SKILLS[@]} ))"
 echo "$LOG_PREFIX =========================================="
+
+# Verify skills landed in the persistent volume
+INSTALLED_COUNT=$(find "$SKILL_DIR" -maxdepth 1 -type d 2>/dev/null | wc -l)
+echo "$LOG_PREFIX Verification: $((INSTALLED_COUNT - 1)) skill directories found in $SKILL_DIR"
+ls "$SKILL_DIR" 2>/dev/null || echo "$LOG_PREFIX WARNING: $SKILL_DIR is empty!"
 
 # Write marker with timestamp
 date -u > "$MARKER"

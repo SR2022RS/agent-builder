@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Holigenix Agent Builder — Entrypoint
+# HighLevel Agent Builder — Entrypoint
 # =============================================================================
 # 1. Start the server in the background
 # 2. Run skill installer (non-blocking, first boot only)
@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-echo "[entrypoint] Starting Holigenix Agent Builder..."
+echo "[entrypoint] Starting HighLevel Agent Builder..."
 
 # Start the Node.js server
 node src/server.js &
