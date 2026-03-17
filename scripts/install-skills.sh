@@ -13,11 +13,17 @@ MARKER="/data/.skills-installed"
 LOG_PREFIX="[skill-installer]"
 SKILL_DIR="/data/workspace/skills"
 
-# If already installed, skip
+# If already installed AND skills directory has content, skip
 if [ -f "$MARKER" ]; then
-  echo "$LOG_PREFIX Skills already installed (marker exists). Skipping."
-  echo "$LOG_PREFIX To reinstall, delete $MARKER and redeploy."
-  exit 0
+  EXISTING=$(find "$SKILL_DIR" -maxdepth 1 -type d 2>/dev/null | wc -l)
+  if [ "$EXISTING" -gt 1 ]; then
+    echo "$LOG_PREFIX Skills already installed ($((EXISTING - 1)) skills in $SKILL_DIR). Skipping."
+    echo "$LOG_PREFIX To reinstall, delete $MARKER and redeploy."
+    exit 0
+  else
+    echo "$LOG_PREFIX Marker exists but $SKILL_DIR is empty. Reinstalling..."
+    rm -f "$MARKER"
+  fi
 fi
 
 echo "$LOG_PREFIX =========================================="
