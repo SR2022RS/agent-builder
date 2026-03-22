@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Vault Build Instructions</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #1c2128;
+      --bg-highlight: #1e2a1e;
+      --border-color: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-green: #3fb950;
+      --accent-blue: #58a6ff;
+      --accent-purple: #bc8cff;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-cyan: #39d2c0;
+      --accent-yellow: #e3b341;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-green {
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .card-blue {
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .card-purple {
+      border-left: 3px solid var(--accent-purple);
+    }
+
+    .card-orange {
+      border-left: 3px solid var(--accent-orange);
+    }
+
+    .card-red {
+      border-left: 3px solid var(--accent-red);
+    }
+
+    .card-cyan {
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 6px;
+      margin-bottom: 8px;
+    }
+
+    .badge-green {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+    }
+
+    .badge-blue {
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--accent-blue);
+    }
+
+    .badge-purple {
+      background: rgba(188, 140, 255, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .badge-orange {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--accent-orange);
+    }
+
+    .badge-red {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+    }
+
+    .badge-cyan {
+      background: rgba(57, 210, 192, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+    }
+
+    ul {
+      padding-left: 20px;
+      margin: 10px 0;
+    }
+
+    li {
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
+
+    li strong {
+      color: var(--text-primary);
+    }
+
+    code {
+      background: rgba(110, 118, 129, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+    }
+
+    pre {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 12px 0;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+
+    pre .comment {
+      color: var(--text-muted);
+    }
+
+    pre .string {
+      color: var(--accent-green);
+    }
+
+    pre .keyword {
+      color: var(--accent-purple);
+    }
+
+    pre .var {
+      color: var(--accent-cyan);
+    }
+
+    .warning-box {
+      background: rgba(248, 81, 73, 0.08);
+      border-left: 3px solid var(--accent-red);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+
+    .warning-box .warning-title {
+      color: var(--accent-red);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .tip-box {
+      background: rgba(63, 185, 80, 0.08);
+      border-left: 3px solid var(--accent-green);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+
+    .tip-box .tip-title {
+      color: var(--accent-green);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .info-box {
+      background: rgba(88, 166, 255, 0.08);
+      border-left: 3px solid var(--accent-blue);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+
+    .info-box .info-title {
+      color: var(--accent-blue);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: rgba(188, 140, 255, 0.15);
+      color: var(--accent-purple);
+      border-radius: 50%;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h4 {
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border-color);
+      margin: 28px 0;
+    }
+
+    .option-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .option-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .recommended {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .examples {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 2px;
+      margin-bottom: 8px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 32px 0 16px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border-color);
+      margin-top: 40px;
+    }
+
+    .footer a {
+      color: var(--accent-green);
+      text-decoration: none;
+    }
+
+    .footer .cohort {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .comparison-cell {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .comparison-cell .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .comparison-cell .value {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 14px;
+      }
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="section">
+    <h1>API Vault Build Instructions</h1>
+    <p class="subtitle">How to securely store, manage, and rotate API keys for your AI agent stack</p>
+  </div>
+
+  <!-- Why This Matters -->
+  <div class="section">
+    <h2>Why This Matters</h2>
+    <div class="card card-orange">
+      <p style="color: var(--text-secondary); font-size: 0.92rem;">
+        API keys are the <strong>single point of failure</strong> in every AI agent setup. One leaked key can lead to unauthorized usage, unexpected bills, or full account compromise. This guide covers three approaches &mdash; pick the one that fits your workflow.
+      </p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Option A: .env File -->
+  <div class="section">
+    <div class="option-header">
+      <span class="option-label">Option A</span>
+    </div>
+    <h2>.env File (Local Development)</h2>
+    <p class="examples">Examples: dotenv, direnv, docker-compose env_file</p>
+    <div class="meta-row">
+      <div class="meta-item">
+        <span class="meta-label">Best for:</span> Solo devs, local testing
+      </div>
+      <div class="meta-item">
+        <span class="badge badge-green">Effort: Low</span>
+        <span class="badge badge-orange">Security: Basic</span>
+      </div>
+    </div>
+
+    <div class="card card-green" style="margin-top: 16px;">
+      <h3>Setup Steps</h3>
+
+      <div class="step">
+        <span class="step-number">1</span>
+        <div class="step-content">
+          <h4>Create your <code>.env</code> file</h4>
+          <pre><span class="comment"># .env &mdash; NEVER commit this file</span>
+<span class="var">OPENAI_API_KEY</span>=<span class="string">sk-proj-xxxxxxxxxxxxxxxx</span>
+<span class="var">ANTHROPIC_API_KEY</span>=<span class="string">sk-ant-xxxxxxxxxxxxxxxx</span>
+<span class="var">REPLICATE_API_TOKEN</span>=<span class="string">r8_xxxxxxxxxxxxxxxx</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <div class="step-content">
+          <h4>Add <code>.env</code> to <code>.gitignore</code></h4>
+          <pre><span class="comment"># .gitignore</span>
+.env
+.env.local
+.env.*.local</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <div class="step-content">
+          <h4>Load in your app</h4>
+          <pre><span class="comment"># Python</span>
+<span class="keyword">from</span> dotenv <span class="keyword">import</span> load_dotenv
+load_dotenv()
+
+<span class="comment"># Node.js</span>
+<span class="keyword">import</span> <span class="string">'dotenv/config'</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <div class="step-content">
+          <h4>Create a <code>.env.example</code> template</h4>
+          <pre><span class="comment"># .env.example &mdash; commit this file</span>
+<span class="var">OPENAI_API_KEY</span>=<span class="string">your-key-here</span>
+<span class="var">ANTHROPIC_API_KEY</span>=<span class="string">your-key-here</span>
+<span class="var">REPLICATE_API_TOKEN</span>=<span class="string">your-key-here</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <div class="tip-title">Pro Tip</div>
+      <ul>
+        <li>Use <code>direnv</code> to auto-load <code>.env</code> when you <code>cd</code> into the project</li>
+        <li>Run <code>git secrets --install</code> to prevent accidental key commits</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Option B: Platform Secrets -->
+  <div class="section">
+    <div class="option-header">
+      <span class="option-label">Option B</span>
+    </div>
+    <h2>Platform Secrets (CI/CD &amp; Hosting)</h2>
+    <p class="examples">Examples: Railway Variables, Vercel Env, GitHub Secrets, AWS SSM</p>
+    <div class="meta-row">
+      <div class="meta-item">
+        <span class="meta-label">Best for:</span> Deployed apps, CI pipelines
+      </div>
+      <div class="meta-item">
+        <span class="badge badge-blue">Effort: Low-Med</span>
+        <span class="badge badge-blue">Security: Good</span>
+      </div>
+    </div>
+
+    <div class="card card-blue" style="margin-top: 16px;">
+      <h3>Setup Steps</h3>
+
+      <div class="step">
+        <span class="step-number">1</span>
+        <div class="step-content">
+          <h4>Add secrets in your platform dashboard</h4>
+          <p>Navigate to your project settings &rarr; Environment Variables and add each key.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <div class="step-content">
+          <h4>Use named env vars per project</h4>
+          <pre><span class="comment"># Good &mdash; scoped and clear</span>
+<span class="var">MYAPP_OPENAI_KEY</span>=sk-proj-xxx
+<span class="var">MYAPP_ANTHROPIC_KEY</span>=sk-ant-xxx
+
+<span class="comment"># Bad &mdash; generic, easy to leak across projects</span>
+<span class="var">API_KEY</span>=sk-xxx</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <div class="step-content">
+          <h4>Scope secrets per environment</h4>
+          <p>Use separate values for <code>development</code>, <code>preview</code>, and <code>production</code> environments. Never share keys across stages.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <div class="step-content">
+          <h4>Access in code via <code>process.env</code></h4>
+          <pre><span class="comment"># The platform injects these at runtime</span>
+<span class="keyword">const</span> <span class="var">key</span> = process.env.<span class="var">MYAPP_OPENAI_KEY</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">Platform-Specific Notes</div>
+      <ul>
+        <li><strong>Railway:</strong> Variables are encrypted at rest and injected at deploy time</li>
+        <li><strong>Vercel:</strong> Use "Sensitive" toggle to mask values in logs</li>
+        <li><strong>GitHub Actions:</strong> Use <code>secrets.YOUR_KEY</code> in workflow YAML</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Option C: Secret Vault Service -->
+  <div class="section">
+    <div class="option-header">
+      <span class="option-label">Option C</span>
+      <span class="recommended">RECOMMENDED</span>
+    </div>
+    <h2>Secret Vault Service</h2>
+    <p class="examples">Examples: 1Password Secrets, Infisical, Doppler</p>
+    <div class="meta-row">
+      <div class="meta-item">
+        <span class="meta-label">Best for:</span> Teams, client deployments, production
+      </div>
+      <div class="meta-item">
+        <span class="badge badge-purple">Effort: Medium</span>
+        <span class="badge badge-cyan">Security: Highest</span>
+      </div>
+    </div>
+
+    <div class="card card-purple" style="margin-top: 16px;">
+      <h3>Why Use a Vault?</h3>
+      <ul>
+        <li><strong>Centralized control</strong> &mdash; one place to manage all secrets across every project and environment</li>
+        <li><strong>Automatic rotation</strong> &mdash; schedule key rotation without redeploying</li>
+        <li><strong>Audit trail</strong> &mdash; full log of who accessed which secret and when</li>
+        <li><strong>Access control</strong> &mdash; grant per-project, per-team, or per-environment permissions</li>
+        <li><strong>Zero plaintext</strong> &mdash; secrets are never stored in files, env vars, or git history</li>
+      </ul>
+    </div>
+
+    <div class="card card-cyan" style="margin-top: 16px;">
+      <h3>Setup Steps</h3>
+
+      <div class="step">
+        <span class="step-number">1</span>
+        <div class="step-content">
+          <h4>Choose your vault provider</h4>
+          <div class="comparison-grid">
+            <div class="comparison-cell">
+              <div class="label">Free Tier</div>
+              <div class="value" style="color: var(--accent-purple);">1Password</div>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Best for teams already using 1Password</p>
+            </div>
+            <div class="comparison-cell">
+              <div class="label">Open Source</div>
+              <div class="value" style="color: var(--accent-green);">Infisical</div>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Self-hostable, great for full control</p>
+            </div>
+            <div class="comparison-cell">
+              <div class="label">Easiest DX</div>
+              <div class="value" style="color: var(--accent-blue);">Doppler</div>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Best CLI &amp; integrations out of the box</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <div class="step-content">
+          <h4>Create a project and environments</h4>
+          <p>Set up separate environments (dev, staging, production) so each stage pulls its own keys.</p>
+          <pre><span class="comment"># Doppler example</span>
+doppler projects create my-ai-agent
+doppler environments create --project my-ai-agent dev
+doppler environments create --project my-ai-agent production
+
+<span class="comment"># Infisical example</span>
+infisical init
+<span class="comment"># Follow prompts to select org &rarr; project &rarr; environment</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <div class="step-content">
+          <h4>Add your secrets to the vault</h4>
+          <pre><span class="comment"># Doppler</span>
+doppler secrets set OPENAI_API_KEY=sk-proj-xxx --project my-ai-agent --config production
+doppler secrets set ANTHROPIC_API_KEY=sk-ant-xxx --project my-ai-agent --config production
+
+<span class="comment"># Infisical</span>
+infisical secrets set OPENAI_API_KEY=sk-proj-xxx --env=prod
+infisical secrets set ANTHROPIC_API_KEY=sk-ant-xxx --env=prod
+
+<span class="comment"># 1Password CLI</span>
+op item create --category=api_credential \
+  --title="OpenAI Production" \
+  --vault="AI Agent Keys" \
+  "credential=sk-proj-xxx"</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <div class="step-content">
+          <h4>Inject secrets at runtime (no .env needed)</h4>
+          <pre><span class="comment"># Doppler &mdash; wraps your process and injects env vars</span>
+doppler run --project my-ai-agent --config production -- node server.js
+
+<span class="comment"># Infisical &mdash; same concept</span>
+infisical run --env=prod -- node server.js
+
+<span class="comment"># 1Password &mdash; uses secret references</span>
+op run --env-file=.env.tpl -- node server.js
+
+<span class="comment"># .env.tpl (1Password template)</span>
+<span class="var">OPENAI_API_KEY</span>=<span class="string">op://AI Agent Keys/OpenAI Production/credential</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">5</span>
+        <div class="step-content">
+          <h4>Connect to your deployment platform</h4>
+          <p>All three providers offer native integrations with Railway, Vercel, AWS, and GitHub Actions.</p>
+          <pre><span class="comment"># Doppler &rarr; Railway integration</span>
+<span class="comment"># 1. Go to Doppler dashboard &rarr; Integrations &rarr; Railway</span>
+<span class="comment"># 2. Authorize and select project + environment</span>
+<span class="comment"># 3. Secrets auto-sync on every deploy</span>
+
+<span class="comment"># Infisical &rarr; GitHub Actions example</span>
+<span class="comment"># Uses official GitHub Action to inject secrets</span>
+- uses: Infisical/secrets-action@v1
+  with:
+    env: production
+    projectId: ${{ secrets.INFISICAL_PROJECT_ID }}</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">6</span>
+        <div class="step-content">
+          <h4>Set up automatic key rotation</h4>
+          <p>Configure rotation schedules so keys are cycled without manual intervention.</p>
+          <pre><span class="comment"># Doppler: rotation is configured per-secret in dashboard</span>
+<span class="comment"># Settings &rarr; Secret &rarr; Enable Rotation &rarr; Set interval (e.g., 90 days)</span>
+
+<span class="comment"># Infisical: use the rotation API</span>
+infisical secrets rotation create \
+  --secret-name OPENAI_API_KEY \
+  --interval 90d \
+  --env=prod
+
+<span class="comment"># 1Password: set expiry reminders, rotate manually or via Connect API</span></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="step-number">7</span>
+        <div class="step-content">
+          <h4>Grant team access with least privilege</h4>
+          <p>Add team members with scoped roles &mdash; developers see dev secrets, only ops sees production.</p>
+          <pre><span class="comment"># Doppler</span>
+doppler team members add dev@team.com --role=viewer --project my-ai-agent --config dev
+doppler team members add ops@team.com --role=admin --project my-ai-agent --config production
+
+<span class="comment"># Infisical</span>
+<span class="comment"># Dashboard &rarr; Members &rarr; Add &rarr; Assign role per environment</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <div class="tip-title">Quick Start Recommendation</div>
+      <ul>
+        <li><strong>Solo + simple?</strong> Start with <strong>Doppler</strong> &mdash; best CLI, 5-minute setup, generous free tier</li>
+        <li><strong>Team + compliance?</strong> Use <strong>Infisical</strong> &mdash; open source, self-hostable, full audit logs</li>
+        <li><strong>Already use 1Password?</strong> Add the <strong>Secrets Automation</strong> add-on &mdash; no new tool to learn</li>
+      </ul>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">How It Works in Practice</div>
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">
+        Your code stays <strong>identical</strong> to Option A or B &mdash; it still reads <code>process.env.OPENAI_API_KEY</code>. The vault CLI wraps your process and injects secrets as environment variables at startup. No code changes needed. The difference is that secrets live in an encrypted vault with access controls, rotation, and audit logs &mdash; not in a flat file or platform dashboard.
+      </p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Best Practices -->
+  <div class="section">
+    <h2>Best Practices (All Options)</h2>
+
+    <div class="tip-box">
+      <div class="tip-title">Always Do This</div>
+      <ul>
+        <li>Rotate all keys every <strong>90 days minimum</strong></li>
+        <li>Use named env vars per project, not generic names</li>
+        <li>Never log API keys in console output</li>
+        <li>Monitor usage dashboards weekly for anomalies</li>
+        <li>Run scan script after any new agent or project setup</li>
+        <li>Test agents with new keys before revoking old ones</li>
+      </ul>
+    </div>
+
+    <div class="warning-box">
+      <div class="warning-title">Never Do This</div>
+      <ul>
+        <li>Hardcode any key in source code files</li>
+        <li>Store keys in Notion, Slack, or any chat tool</li>
+        <li>Share keys in screenshots (blur that section)</li>
+        <li>Use the same key across production and development</li>
+        <li>Ignore rate limit errors thinking they are just bugs</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Built for the <span class="cohort">AI Junkies</span> cohort &middot; Presented by
+    <a href="#">@aisniper007</a> &middot; AI Marvels / EmergeStack
+    Development Company
+  </div>
+
+</body>
+</html>
