@@ -32,24 +32,24 @@ echo "$LOG_PREFIX =========================================="
 echo "$LOG_PREFIX  HighLevel Agent Builder — Installing Skills"
 echo "$LOG_PREFIX =========================================="
 
-# Wait for clawhub to be available (ships with openclaw)
-until command -v clawhub &> /dev/null || command -v openclaw &> /dev/null; do
-  echo "$LOG_PREFIX Waiting for clawhub CLI..."
+# Wait for clawbot to be available (ships with openclaw)
+until command -v clawbot &> /dev/null || command -v openclaw &> /dev/null; do
+  echo "$LOG_PREFIX Waiting for clawbot CLI..."
   sleep 2
 done
 
-# Determine the install command (clawhub is preferred, fallback to openclaw clawhub)
-if command -v clawhub &> /dev/null; then
-  INSTALL_CMD="clawhub"
+# Determine the install command (clawbot is preferred, fallback to openclaw clawbot)
+if command -v clawbot &> /dev/null; then
+  INSTALL_CMD="clawbot"
 else
-  INSTALL_CMD="openclaw clawhub"
+  INSTALL_CMD="openclaw clawbot"
 fi
 echo "$LOG_PREFIX Using install command: $INSTALL_CMD install"
 
 # Ensure skills directory exists inside the persistent volume
 mkdir -p "$SKILL_DIR"
 
-# cd into workspace so 'clawhub install' writes to /data/workspace/skills/
+# cd into workspace so 'clawbot install' writes to /data/workspace/skills/
 cd /data/workspace
 
 echo "$LOG_PREFIX OpenClaw CLI found. Starting skill installation..."
