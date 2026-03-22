@@ -32,24 +32,34 @@ echo "$LOG_PREFIX =========================================="
 echo "$LOG_PREFIX  HighLevel Agent Builder — Installing Skills"
 echo "$LOG_PREFIX =========================================="
 
-# Wait for clawbot to be available (ships with openclaw)
-until command -v clawbot &> /dev/null || command -v openclaw &> /dev/null; do
-  echo "$LOG_PREFIX Waiting for clawbot CLI..."
+# Wait for openclaw to be available
+until command -v openclaw &> /dev/null; do
+  echo "$LOG_PREFIX Waiting for openclaw CLI..."
   sleep 2
 done
 
-# Determine the install command (clawbot is preferred, fallback to openclaw clawbot)
-if command -v clawbot &> /dev/null; then
-  INSTALL_CMD="clawbot"
-else
-  INSTALL_CMD="openclaw clawbot"
+# Auto-detect the correct install command by testing candidates
+INSTALL_CMD=""
+for candidate in "openclaw extension install" "openclaw skill install" "openclaw marketplace install" "openclaw hub install"; do
+  if $candidate --help &>/dev/null 2>&1 || $candidate test-probe &>/dev/null 2>&1; then
+    INSTALL_CMD="$candidate"
+    break
+  fi
+done
+
+# If no candidate worked, try openclaw --help to discover subcommands
+if [ -z "$INSTALL_CMD" ]; then
+  echo "$LOG_PREFIX Probing openclaw subcommands..."
+  openclaw --help 2>&1 | grep -iE "skill|extension|hub|market|install" || true
+  # Default to extension install as most likely
+  INSTALL_CMD="openclaw extension install"
 fi
-echo "$LOG_PREFIX Using install command: $INSTALL_CMD install"
+echo "$LOG_PREFIX Using install command: $INSTALL_CMD"
 
 # Ensure skills directory exists inside the persistent volume
 mkdir -p "$SKILL_DIR"
 
-# cd into workspace so 'clawbot install' writes to /data/workspace/skills/
+# cd into workspace so skills install to /data/workspace/skills/
 cd /data/workspace
 
 echo "$LOG_PREFIX OpenClaw CLI found. Starting skill installation..."
@@ -91,7 +101,7 @@ MARKETING_SKILLS=(
 
 for skill in "${MARKETING_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -117,7 +127,7 @@ COMMUNICATION_SKILLS=(
 
 for skill in "${COMMUNICATION_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -138,7 +148,7 @@ CALENDAR_SKILLS=(
 
 for skill in "${CALENDAR_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -156,7 +166,7 @@ SEARCH_SKILLS=(
 
 for skill in "${SEARCH_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -176,7 +186,7 @@ ECOMMERCE_SKILLS=(
 
 for skill in "${ECOMMERCE_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -194,7 +204,7 @@ PRODUCTIVITY_SKILLS=(
 
 for skill in "${PRODUCTIVITY_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
@@ -213,7 +223,7 @@ DATA_SKILLS=(
 
 for skill in "${DATA_SKILLS[@]}"; do
   echo "$LOG_PREFIX   Installing: $skill"
-  $INSTALL_CMD install "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
+  $INSTALL_CMD "$skill" 2>&1 || echo "$LOG_PREFIX   ⚠ Failed: $skill (continuing...)"
 done
 
 # =============================================================================
