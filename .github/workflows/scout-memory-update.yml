@@ -1,0 +1,133 @@
+name: Scout Memory Biweekly Update
+
+# Runs every 2 weeks on Monday at 8am EST (13:00 UTC)
+on:
+  schedule:
+    - cron: '0 13 * * 1/14'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-memory:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://shrxkkbgmckbezmlssbg.supabase.co
+      SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Query CRM metrics from Supabase
+        id: metrics
+        run: |
+          # Query contact stats
+          CONTACTS=$(curl -s "$SUPABASE_URL/rest/v1/crm_referral_sources?select=id,stage,relationship_score,referrals_received,next_followup_at&organization_id=not.is.null" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+
+          TOTAL=$(echo "$CONTACTS" | jq 'length')
+          ACTIVE=$(echo "$CONTACTS" | jq '[.[] | select(.stage == "Active Partner" or .stage == "Engaged")] | length')
+          OVERDUE=$(echo "$CONTACTS" | jq --arg now "$(date -u +%Y-%m-%dT%H:%M:%S)" '[.[] | select(.next_followup_at != null and .next_followup_at < $now)] | length')
+          AVG_SCORE=$(echo "$CONTACTS" | jq 'if length > 0 then ([.[].relationship_score // 0] | add / length | floor) else 0 end')
+          TOTAL_REFERRALS=$(echo "$CONTACTS" | jq '[.[].referrals_received // 0] | add')
+
+          # Query referral cases
+          CASES=$(curl -s "$SUPABASE_URL/rest/v1/referral_cases?select=id,status&organization_id=not.is.null" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          TOTAL_CASES=$(echo "$CASES" | jq 'length')
+
+          # Query hospitals
+          HOSPITALS=$(curl -s "$SUPABASE_URL/rest/v1/hospital_directory?select=id,nicu_flag,pediatric_flag&organization_id=not.is.null" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          TOTAL_HOSPITALS=$(echo "$HOSPITALS" | jq 'length')
+          NICU_HOSPITALS=$(echo "$HOSPITALS" | jq '[.[] | select(.nicu_flag == true)] | length')
+
+          # Query outreach emails
+          OUTREACH=$(curl -s "$SUPABASE_URL/rest/v1/outreach_emails?select=id,status,outcome,sent_at,was_edited&organization_id=not.is.null" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          TOTAL_OUTREACH=$(echo "$OUTREACH" | jq 'length')
+          SENT=$(echo "$OUTREACH" | jq '[.[] | select(.sent_at != null)] | length')
+          REPLIED=$(echo "$OUTREACH" | jq '[.[] | select(.status == "replied")] | length')
+          POSITIVE=$(echo "$OUTREACH" | jq '[.[] | select(.outcome == "positive_response" or .outcome == "meeting_scheduled" or .outcome == "referral_received")] | length')
+
+          # Query overdue tasks
+          TASKS=$(curl -s "$SUPABASE_URL/rest/v1/crm_tasks?select=id&status=neq.completed&due_at=lt.$(date -u +%Y-%m-%dT%H:%M:%S)&organization_id=not.is.null" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+          OVERDUE_TASKS=$(echo "$TASKS" | jq 'length')
+
+          # Export for next step
+          echo "TOTAL=$TOTAL" >> $GITHUB_OUTPUT
+          echo "ACTIVE=$ACTIVE" >> $GITHUB_OUTPUT
+          echo "OVERDUE=$OVERDUE" >> $GITHUB_OUTPUT
+          echo "AVG_SCORE=$AVG_SCORE" >> $GITHUB_OUTPUT
+          echo "TOTAL_REFERRALS=$TOTAL_REFERRALS" >> $GITHUB_OUTPUT
+          echo "TOTAL_CASES=$TOTAL_CASES" >> $GITHUB_OUTPUT
+          echo "TOTAL_HOSPITALS=$TOTAL_HOSPITALS" >> $GITHUB_OUTPUT
+          echo "NICU_HOSPITALS=$NICU_HOSPITALS" >> $GITHUB_OUTPUT
+          echo "TOTAL_OUTREACH=$TOTAL_OUTREACH" >> $GITHUB_OUTPUT
+          echo "SENT=$SENT" >> $GITHUB_OUTPUT
+          echo "REPLIED=$REPLIED" >> $GITHUB_OUTPUT
+          echo "POSITIVE=$POSITIVE" >> $GITHUB_OUTPUT
+          echo "OVERDUE_TASKS=$OVERDUE_TASKS" >> $GITHUB_OUTPUT
+
+      - name: Update GROWTH_LOG.md
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          ENTRY="
+          ## $DATE — Biweekly Metrics Update (Automated)
+
+          ### Outreach Metrics
+          | Metric | Value |
+          |--------|-------|
+          | Emails drafted | ${{ steps.metrics.outputs.TOTAL_OUTREACH }} |
+          | Emails sent | ${{ steps.metrics.outputs.SENT }} |
+          | Replies received | ${{ steps.metrics.outputs.REPLIED }} |
+          | Positive outcomes | ${{ steps.metrics.outputs.POSITIVE }} |
+
+          ### Pipeline Metrics
+          | Metric | Value |
+          |--------|-------|
+          | Total contacts | ${{ steps.metrics.outputs.TOTAL }} |
+          | Active partners | ${{ steps.metrics.outputs.ACTIVE }} |
+          | Avg relationship score | ${{ steps.metrics.outputs.AVG_SCORE }} |
+          | Total referrals received | ${{ steps.metrics.outputs.TOTAL_REFERRALS }} |
+          | Referral cases | ${{ steps.metrics.outputs.TOTAL_CASES }} |
+          | Overdue follow-ups | ${{ steps.metrics.outputs.OVERDUE }} |
+          | Overdue tasks | ${{ steps.metrics.outputs.OVERDUE_TASKS }} |
+
+          ### Coverage Metrics
+          | Metric | Value |
+          |--------|-------|
+          | Total hospitals | ${{ steps.metrics.outputs.TOTAL_HOSPITALS }} |
+          | NICU hospitals | ${{ steps.metrics.outputs.NICU_HOSPITALS }} |
+
+          ---
+          "
+
+          # Update the last updated date
+          sed -i "s/^> Last updated:.*/> Last updated: $DATE/" workspace/memory/GROWTH_LOG.md
+
+          # Insert new entry after the "---" line following "## 2026-03-22"
+          # Find the line with the metrics template and insert before it
+          awk -v entry="$ENTRY" '/^## Metrics Template/ { print entry } { print }' \
+            workspace/memory/GROWTH_LOG.md > workspace/memory/GROWTH_LOG.md.tmp
+          mv workspace/memory/GROWTH_LOG.md.tmp workspace/memory/GROWTH_LOG.md
+
+      - name: Commit and push updates
+        run: |
+          git config user.name "Scout Memory Bot"
+          git config user.email "admin@holigenixhealthcare.com"
+          git add workspace/memory/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Scout biweekly memory update — $(date -u +%Y-%m-%d)
+
+          Automated CRM metrics snapshot for Scout's persistent memory.
+
+          Co-Authored-By: Scout Memory Bot <admin@holigenixhealthcare.com>"
+            git push
+          fi
