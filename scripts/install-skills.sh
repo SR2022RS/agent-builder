@@ -227,6 +227,21 @@ for skill in "${DATA_SKILLS[@]}"; do
 done
 
 # =============================================================================
+# COMPOSIO PLUGIN (Gmail, Google Drive, Telegram integration)
+# =============================================================================
+echo "$LOG_PREFIX [8/8] Installing Composio plugin..."
+
+openclaw plugins install @composio/openclaw-plugin 2>&1 || echo "$LOG_PREFIX   Warning: Composio plugin install returned non-zero (may already be installed)"
+
+# Configure Composio with consumer API key
+COMPOSIO_KEY="${COMPOSIO_CONSUMER_KEY:-ck_tOkF1ToyQgSBwXM9BXk1}"
+echo "$LOG_PREFIX   Setting Composio consumer key..."
+openclaw config set plugins.entries.composio.config.consumerKey "$COMPOSIO_KEY" 2>&1 || echo "$LOG_PREFIX   Warning: Failed to set consumerKey"
+openclaw config set plugins.allow '["composio"]' 2>&1 || echo "$LOG_PREFIX   Warning: Failed to set plugins.allow"
+openclaw config set tools.alsoAllow '["composio"]' 2>&1 || echo "$LOG_PREFIX   Warning: Failed to set tools.alsoAllow"
+echo "$LOG_PREFIX   Composio plugin configured."
+
+# =============================================================================
 # MARK INSTALLATION COMPLETE
 # =============================================================================
 echo "$LOG_PREFIX =========================================="
