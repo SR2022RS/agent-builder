@@ -52,7 +52,7 @@
 | System | Purpose | URL |
 |--------|---------|-----|
 | Growth Engine (Vercel) | Referral CRM + dashboard | holigenix-growth-engine.vercel.app |
-| Growth Engine (Lovable) | Original frontend | homehealthcareleads.com |
+| Growth Engine (Domain) | Production domain | homehealthcareleads.com |
 | CarePortal (Vercel) | Clinical operations portal | clientportal.holigenixhealthcare.com |
 | Supabase | Database + Edge Functions + Auth | shrxkkbgmckbezmlssbg.supabase.co |
 | Railway | OpenClaw agent hosting (Scout) | openclaw-railway-template-pu92-production.up.railway.app |

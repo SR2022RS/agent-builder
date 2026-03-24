@@ -29,7 +29,7 @@ This is a running log of growth milestones, wins, learnings, and key metrics. Sc
 | Platform | Status | URL |
 |----------|--------|-----|
 | Growth Engine (Vercel) | Live | holigenix-growth-engine.vercel.app |
-| Growth Engine (Lovable) | Live | homehealthcareleads.com |
+| Growth Engine (Domain) | Live | homehealthcareleads.com |
 | CarePortal | Live | clientportal.holigenixhealthcare.com |
 | Scout (Railway) | Online | Telegram @GrowthEngineBot |
 | Supabase | Healthy | shrxkkbgmckbezmlssbg |
