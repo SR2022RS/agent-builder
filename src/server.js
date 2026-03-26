@@ -144,27 +144,19 @@ async function startGateway() {
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
-  // Remove unsupported MCP keys — OpenClaw v2026.3.x does not support MCP config
-  // in openclaw.json. Both "mcpServers" and "mcp" cause validation failures.
+  // Migrate legacy mcpServers (camelCase) → mcp.servers (OpenClaw v2026.3.22+ format)
   try {
     const rawCfg = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-    let dirty = false;
     if (rawCfg.mcpServers) {
-      console.log(`[gateway] Removing unsupported mcpServers key from config`);
+      console.log(`[gateway] Migrating legacy mcpServers → mcp.servers`);
+      rawCfg.mcp = rawCfg.mcp || {};
+      rawCfg.mcp.servers = { ...(rawCfg.mcp.servers || {}), ...rawCfg.mcpServers };
       delete rawCfg.mcpServers;
-      dirty = true;
-    }
-    if (rawCfg.mcp) {
-      console.log(`[gateway] Removing unsupported mcp key from config`);
-      delete rawCfg.mcp;
-      dirty = true;
-    }
-    if (dirty) {
       fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
-      console.log(`[gateway] ✓ Unsupported config keys removed`);
+      console.log(`[gateway] ✓ Legacy mcpServers migrated`);
     }
   } catch (err) {
-    console.warn(`[gateway] Config cleanup check skipped: ${err.message}`);
+    console.warn(`[gateway] Config migration check skipped: ${err.message}`);
   }
 
   // Sync wrapper token to openclaw.json before every gateway start.
@@ -212,14 +204,47 @@ async function startGateway() {
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
-  // NOTE: GHL MCP integration is not injected into openclaw.json because
-  // OpenClaw v2026.3.x does not support MCP server config in its schema.
-  // GHL integration is available via env vars (GHL_API_KEY, GHL_LOCATION_ID)
-  // and can be configured through the OpenClaw UI or plugins when supported.
+  // ─── GoHighLevel MCP Server ─────────────────────────────────────────
+  // Inject GHL MCP server via `openclaw mcp set` CLI (v2026.3.22+).
+  // This gives the agent direct access to contacts, conversations,
+  // calendars, pipelines, payments, social, and everything else in GHL.
   const envGhlToken = (process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
   const envGhlLocationId = process.env.GHL_LOCATION_ID?.trim();
   if (envGhlToken && envGhlLocationId) {
-    console.log(`[gateway] GHL env vars detected (location: ${envGhlLocationId.slice(0, 8)}...) — available to agents via environment`);
+    const ghlMcpConfig = {
+      url: "https://services.leadconnectorhq.com/mcp/",
+      transport: "streamable-http",
+      headers: {
+        Authorization: `Bearer ${envGhlToken}`,
+        Version: "2021-07-28",
+      },
+      metadata: {
+        locationId: envGhlLocationId,
+        label: "GoHighLevel CRM",
+      },
+    };
+
+    const setGhl = await runCmd(
+      OPENCLAW_NODE,
+      clawArgs(["mcp", "set", "gohighlevel", JSON.stringify(ghlMcpConfig)]),
+    );
+
+    if (setGhl.code === 0) {
+      console.log(`[gateway] ✓ GHL MCP server configured (location: ${envGhlLocationId})`);
+    } else {
+      console.warn(`[gateway] ⚠ openclaw mcp set failed (code ${setGhl.code}): ${setGhl.output}`);
+      // Fallback: write directly to mcp.servers in config
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+        config.mcp = config.mcp || {};
+        config.mcp.servers = config.mcp.servers || {};
+        config.mcp.servers.gohighlevel = ghlMcpConfig;
+        fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+        console.log(`[gateway] ✓ GHL MCP server configured via direct config write`);
+      } catch (err) {
+        console.error(`[gateway] ✗ Failed to configure GHL MCP: ${err.message}`);
+      }
+    }
   }
 
   const args = [
@@ -704,17 +729,64 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         extra += `\n[controlUi] allowedOrigins set to https://${railwayDomain}\n`;
       }
 
-      // ─── GoHighLevel Integration ──────────────────────────────────────
-      // NOTE: OpenClaw v2026.3.x does not support MCP server config in openclaw.json.
-      // Writing mcpServers or mcp.servers causes config validation failure and gateway crash.
-      // GHL credentials are available to agents via environment variables instead.
+      // ─── GoHighLevel MCP Server Setup ──────────────────────────────────
+      // Connects the agent to GoHighLevel's official MCP endpoint via
+      // `openclaw mcp set` (v2026.3.22+) so it can manage contacts,
+      // conversations, calendars, pipelines, payments, social, etc.
       const ghlToken = (payload.ghlPrivateToken || process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
       const ghlLocationId = (payload.ghlLocationId || process.env.GHL_LOCATION_ID || "").trim();
 
       if (ghlToken && ghlLocationId) {
-        console.log(`[ghl] GoHighLevel credentials detected (location: ${ghlLocationId.slice(0, 8)}...)`);
-        extra += `\n[ghl] ✓ GoHighLevel credentials available via env vars (location: ${ghlLocationId})\n`;
-        extra += `[ghl] ℹ MCP config injection skipped — not supported in this OpenClaw version\n`;
+        console.log(`[ghl] Configuring GoHighLevel MCP server for location ${ghlLocationId.slice(0, 8)}...`);
+
+        const ghlMcpConfig = {
+          url: "https://services.leadconnectorhq.com/mcp/",
+          transport: "streamable-http",
+          headers: {
+            Authorization: `Bearer ${ghlToken}`,
+            Version: "2021-07-28",
+          },
+          metadata: {
+            locationId: ghlLocationId,
+            label: "GoHighLevel CRM",
+          },
+        };
+
+        const setGhl = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs(["mcp", "set", "gohighlevel", JSON.stringify(ghlMcpConfig)]),
+        );
+
+        if (setGhl.code === 0) {
+          console.log(`[ghl] ✓ GoHighLevel MCP server configured successfully`);
+          extra += `\n[ghl] ✓ GoHighLevel MCP server connected (location: ${ghlLocationId})\n`;
+        } else {
+          console.warn(`[ghl] ⚠ openclaw mcp set failed (code ${setGhl.code}): ${setGhl.output}`);
+          // Fallback: write directly to mcp.servers in config
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+            config.mcp = config.mcp || {};
+            config.mcp.servers = config.mcp.servers || {};
+            config.mcp.servers.gohighlevel = ghlMcpConfig;
+            fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+            console.log(`[ghl] ✓ GoHighLevel MCP server configured via direct write`);
+            extra += `[ghl] ✓ GoHighLevel MCP server connected via direct write\n`;
+          } catch (err) {
+            console.error(`[ghl] ✗ Failed to configure GHL MCP: ${err}`);
+            extra += `[ghl] ✗ Failed to configure GoHighLevel: ${String(err)}\n`;
+          }
+        }
+
+        // Verify
+        const verifyGhl = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs(["mcp", "show", "gohighlevel"]),
+        );
+        if (verifyGhl.code === 0 && verifyGhl.output?.includes("leadconnectorhq")) {
+          console.log(`[ghl] ✓ Verification passed`);
+        } else {
+          console.warn(`[ghl] ⚠ Verification: ${verifyGhl.output}`);
+        }
       } else if (ghlToken || ghlLocationId) {
         extra += `\n[ghl] ⚠ Skipped — need both Private Token AND Location ID to connect GoHighLevel\n`;
       }

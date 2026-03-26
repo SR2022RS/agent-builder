@@ -18,18 +18,22 @@ if [ -f "$CONFIG_FILE" ]; then
   echo "[entrypoint] Running openclaw doctor --fix to validate config..."
   openclaw doctor --fix 2>&1 || echo "[entrypoint] doctor --fix exited non-zero (may be ok if config was already clean)"
 
-  # Remove unsupported MCP keys — OpenClaw v2026.3.x rejects them during config validation
+  # Migrate legacy mcpServers (camelCase) → mcp.servers (v2026.3.22+ format)
   if command -v node > /dev/null 2>&1; then
     node -e "
       const fs = require('fs');
       const p = '$CONFIG_FILE';
       try {
         const c = JSON.parse(fs.readFileSync(p, 'utf8'));
-        let dirty = false;
-        if (c.mcpServers) { delete c.mcpServers; dirty = true; console.log('[entrypoint] Removed unsupported mcpServers key'); }
-        if (c.mcp) { delete c.mcp; dirty = true; console.log('[entrypoint] Removed unsupported mcp key'); }
-        if (dirty) { fs.writeFileSync(p, JSON.stringify(c, null, 2)); console.log('[entrypoint] ✓ Config cleaned'); }
-      } catch(e) { console.warn('[entrypoint] Config cleanup skipped:', e.message); }
+        if (c.mcpServers) {
+          console.log('[entrypoint] Migrating legacy mcpServers → mcp.servers');
+          c.mcp = c.mcp || {};
+          c.mcp.servers = { ...(c.mcp.servers || {}), ...c.mcpServers };
+          delete c.mcpServers;
+          fs.writeFileSync(p, JSON.stringify(c, null, 2));
+          console.log('[entrypoint] ✓ Migration complete');
+        }
+      } catch(e) { console.warn('[entrypoint] Config migration skipped:', e.message); }
     "
   fi
 fi
