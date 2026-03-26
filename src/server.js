@@ -189,6 +189,35 @@ async function startGateway() {
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
+  // If GHL env vars are set but MCP config is missing, inject it.
+  // This handles the case where env vars were added after initial onboarding.
+  const envGhlToken = (process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
+  const envGhlLocationId = process.env.GHL_LOCATION_ID?.trim();
+  if (envGhlToken && envGhlLocationId) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+      if (!config.mcpServers?.gohighlevel) {
+        console.log(`[gateway] GHL env vars found but MCP config missing — injecting...`);
+        config.mcpServers = config.mcpServers || {};
+        config.mcpServers.gohighlevel = {
+          url: "https://services.leadconnectorhq.com/mcp/",
+          transport: "streamable-http",
+          headers: {
+            Authorization: `Bearer ${envGhlToken}`,
+            Version: "2021-07-28",
+          },
+          metadata: {
+            locationId: envGhlLocationId,
+            label: "GoHighLevel CRM",
+          },
+        };
+        fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+        console.log(`[gateway] ✓ GHL MCP server injected from env vars`);
+      }
+    } catch (err) {
+      console.warn(`[gateway] Could not check/inject GHL config: ${err.message}`);
+    }
+  }
 
   const args = [
     "gateway",
@@ -670,6 +699,74 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
           ]),
         );
         extra += `\n[controlUi] allowedOrigins set to https://${railwayDomain}\n`;
+      }
+
+      // ─── GoHighLevel MCP Server Setup ──────────────────────────────────
+      // Connects the agent to GoHighLevel's official MCP endpoint so it can
+      // manage contacts, conversations, calendars, pipelines, payments, etc.
+      const ghlToken = (payload.ghlPrivateToken || process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
+      const ghlLocationId = (payload.ghlLocationId || process.env.GHL_LOCATION_ID || "").trim();
+
+      if (ghlToken && ghlLocationId) {
+        console.log(`[ghl] Configuring GoHighLevel MCP server for location ${ghlLocationId.slice(0, 8)}...`);
+
+        const ghlMcpConfig = {
+          url: "https://services.leadconnectorhq.com/mcp/",
+          transport: "streamable-http",
+          headers: {
+            Authorization: `Bearer ${ghlToken}`,
+            Version: "2021-07-28",
+          },
+          metadata: {
+            locationId: ghlLocationId,
+            label: "GoHighLevel CRM",
+          },
+        };
+
+        const setGhl = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs([
+            "config",
+            "set",
+            "--json",
+            "mcpServers.gohighlevel",
+            JSON.stringify(ghlMcpConfig),
+          ]),
+        );
+
+        if (setGhl.code === 0) {
+          console.log(`[ghl] ✓ GoHighLevel MCP server configured successfully`);
+          extra += `\n[ghl] ✓ GoHighLevel MCP server connected (location: ${ghlLocationId})\n`;
+        } else {
+          console.warn(`[ghl] ⚠ config set mcpServers.gohighlevel failed (code ${setGhl.code})`);
+          extra += `\n[ghl] ⚠ MCP config set failed — trying direct config write...\n`;
+
+          // Fallback: write directly to openclaw.json (same pattern as channel config)
+          try {
+            const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+            config.mcpServers = config.mcpServers || {};
+            config.mcpServers.gohighlevel = ghlMcpConfig;
+            fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+            console.log(`[ghl] ✓ GoHighLevel MCP server written directly to config`);
+            extra += `[ghl] ✓ GoHighLevel MCP server configured via direct write\n`;
+          } catch (err) {
+            console.error(`[ghl] ✗ Failed to write GHL config: ${err}`);
+            extra += `[ghl] ✗ Failed to configure GoHighLevel: ${String(err)}\n`;
+          }
+        }
+
+        // Verify the config was written
+        const verifyGhl = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs(["config", "get", "mcpServers.gohighlevel"]),
+        );
+        if (verifyGhl.code === 0 && verifyGhl.output?.includes("leadconnectorhq")) {
+          console.log(`[ghl] ✓ Verification passed`);
+        } else {
+          console.warn(`[ghl] ⚠ Verification: ${verifyGhl.output}`);
+        }
+      } else if (ghlToken || ghlLocationId) {
+        extra += `\n[ghl] ⚠ Skipped — need both Private Token AND Location ID to connect GoHighLevel\n`;
       }
 
       const channelsHelp = await runCmd(

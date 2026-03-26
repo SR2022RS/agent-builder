@@ -74,6 +74,8 @@
       flow: document.getElementById('flow').value,
       authChoice: authChoiceEl.value,
       authSecret: document.getElementById('authSecret').value,
+      ghlPrivateToken: document.getElementById('ghlPrivateToken').value,
+      ghlLocationId: document.getElementById('ghlLocationId').value,
       telegramToken: document.getElementById('telegramToken').value,
       discordToken: document.getElementById('discordToken').value,
       slackBotToken: document.getElementById('slackBotToken').value,

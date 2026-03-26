@@ -41,7 +41,25 @@
   </div>
 
   <div class="card">
-    <h2>2) Optional: Channels</h2>
+    <h2>2) GoHighLevel Integration</h2>
+    <p class="muted">Connect your agent directly to your GoHighLevel CRM. Your agent will be able to manage contacts, send messages, book appointments, move pipeline deals, and more — all autonomously.</p>
+
+    <label>GHL Private Integration Token</label>
+    <input id="ghlPrivateToken" type="password" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+    <div class="muted" style="margin-top: 0.25rem">
+      Go to GHL → Settings → Integrations → Private Integrations → Create New.<br/>
+      Select all scopes you want the agent to access, copy the token. Takes ~2 minutes.
+    </div>
+
+    <label>GHL Location ID</label>
+    <input id="ghlLocationId" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxx" />
+    <div class="muted" style="margin-top: 0.25rem">
+      Found in GHL → Settings → Business Info, or in your sub-account URL.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3) Optional: Channels</h2>
     <p class="muted">You can also add channels later inside Openclaw, but this helps you get messaging working immediately.</p>
 
     <label>Telegram bot token (optional)</label>
@@ -65,7 +83,7 @@
   </div>
 
   <div class="card">
-    <h2>3) Run onboarding</h2>
+    <h2>4) Run onboarding</h2>
     <button id="run">Run setup</button>
     <button id="pairingApprove" class="secondary-button">Approve pairing</button>
     <button id="reset" class="tertiary-button">Reset setup</button>
