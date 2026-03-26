@@ -144,6 +144,22 @@ async function startGateway() {
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
+  // Remove legacy mcpServers key if present — it causes OpenClaw config validation to fail.
+  // The correct key is mcp.servers (nested, not camelCase root).
+  try {
+    const rawCfg = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    if (rawCfg.mcpServers) {
+      console.log(`[gateway] Migrating legacy mcpServers → mcp.servers`);
+      rawCfg.mcp = rawCfg.mcp || {};
+      rawCfg.mcp.servers = { ...(rawCfg.mcp.servers || {}), ...rawCfg.mcpServers };
+      delete rawCfg.mcpServers;
+      fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
+      console.log(`[gateway] ✓ Legacy mcpServers key removed`);
+    }
+  } catch (err) {
+    console.warn(`[gateway] Config migration check skipped: ${err.message}`);
+  }
+
   // Sync wrapper token to openclaw.json before every gateway start.
   // This ensures the gateway's config-file token matches what the wrapper injects via proxy.
   console.log(`[gateway] ========== GATEWAY START TOKEN SYNC ==========`);
@@ -196,10 +212,11 @@ async function startGateway() {
   if (envGhlToken && envGhlLocationId) {
     try {
       const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-      if (!config.mcpServers?.gohighlevel) {
+      if (!config.mcp?.servers?.gohighlevel) {
         console.log(`[gateway] GHL env vars found but MCP config missing — injecting...`);
-        config.mcpServers = config.mcpServers || {};
-        config.mcpServers.gohighlevel = {
+        config.mcp = config.mcp || {};
+        config.mcp.servers = config.mcp.servers || {};
+        config.mcp.servers.gohighlevel = {
           url: "https://services.leadconnectorhq.com/mcp/",
           transport: "streamable-http",
           headers: {
@@ -211,6 +228,8 @@ async function startGateway() {
             label: "GoHighLevel CRM",
           },
         };
+        // Remove legacy mcpServers key if present (causes config validation failure)
+        delete config.mcpServers;
         fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
         console.log(`[gateway] ✓ GHL MCP server injected from env vars`);
       }
@@ -729,7 +748,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
             "config",
             "set",
             "--json",
-            "mcpServers.gohighlevel",
+            "mcp.servers.gohighlevel",
             JSON.stringify(ghlMcpConfig),
           ]),
         );
@@ -738,14 +757,17 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
           console.log(`[ghl] ✓ GoHighLevel MCP server configured successfully`);
           extra += `\n[ghl] ✓ GoHighLevel MCP server connected (location: ${ghlLocationId})\n`;
         } else {
-          console.warn(`[ghl] ⚠ config set mcpServers.gohighlevel failed (code ${setGhl.code})`);
+          console.warn(`[ghl] ⚠ config set mcp.servers.gohighlevel failed (code ${setGhl.code})`);
           extra += `\n[ghl] ⚠ MCP config set failed — trying direct config write...\n`;
 
           // Fallback: write directly to openclaw.json (same pattern as channel config)
           try {
             const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-            config.mcpServers = config.mcpServers || {};
-            config.mcpServers.gohighlevel = ghlMcpConfig;
+            config.mcp = config.mcp || {};
+            config.mcp.servers = config.mcp.servers || {};
+            config.mcp.servers.gohighlevel = ghlMcpConfig;
+            // Remove legacy mcpServers key if present
+            delete config.mcpServers;
             fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
             console.log(`[ghl] ✓ GoHighLevel MCP server written directly to config`);
             extra += `[ghl] ✓ GoHighLevel MCP server configured via direct write\n`;
@@ -758,7 +780,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         // Verify the config was written
         const verifyGhl = await runCmd(
           OPENCLAW_NODE,
-          clawArgs(["config", "get", "mcpServers.gohighlevel"]),
+          clawArgs(["config", "get", "mcp.servers.gohighlevel"]),
         );
         if (verifyGhl.code === 0 && verifyGhl.output?.includes("leadconnectorhq")) {
           console.log(`[ghl] ✓ Verification passed`);
