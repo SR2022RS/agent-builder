@@ -88,6 +88,7 @@ COPY src ./src
 COPY scripts ./scripts
 RUN chmod +x ./scripts/install-skills.sh
 COPY extensions ./extensions
+COPY workspace ./workspace-template
 
 # Entrypoint: install skills on first boot, then start the server
 COPY entrypoint.sh ./entrypoint.sh

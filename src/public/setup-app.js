@@ -126,6 +126,17 @@
     };
   }
 
+  document.getElementById('restartGateway').onclick = function () {
+    logEl.textContent = 'Restarting gateway (reconnects Telegram/Discord/Slack)...\n';
+    fetch('/setup/api/restart', { method: 'POST', credentials: 'same-origin' })
+      .then(function (res) { return res.json(); })
+      .then(function (j) {
+        logEl.textContent += j.ok ? 'Gateway restarted successfully.\n' : 'Restart failed: ' + (j.error || 'unknown') + '\n';
+        return refreshStatus();
+      })
+      .catch(function (e) { logEl.textContent += 'Error: ' + String(e) + '\n'; });
+  };
+
   document.getElementById('reset').onclick = function () {
     if (!confirm('Reset setup? This deletes the config file so onboarding can run again.')) return;
     logEl.textContent = 'Resetting...\n';

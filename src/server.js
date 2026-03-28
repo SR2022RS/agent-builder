@@ -159,6 +159,32 @@ async function startGateway() {
     console.warn(`[gateway] Config migration check skipped: ${err.message}`);
   }
 
+  // Sync workspace template files from Docker image to the persistent volume.
+  // Top-level files (system_prompt.md) are always overwritten with the latest version.
+  // Subdirectory files (memory/) are only created if missing — never overwritten,
+  // since the agent may have updated them at runtime.
+  const templateDir = path.join(process.cwd(), "workspace-template");
+  if (fs.existsSync(templateDir)) {
+    const syncDir = (srcDir, destDir, overwrite) => {
+      fs.mkdirSync(destDir, { recursive: true });
+      for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+        const src = path.join(srcDir, entry.name);
+        const dest = path.join(destDir, entry.name);
+        if (entry.isDirectory()) {
+          syncDir(src, dest, false); // subdirectories: create-only
+        } else {
+          const destExists = fs.existsSync(dest);
+          if (!overwrite && destExists) continue;
+          const srcContent = fs.readFileSync(src);
+          if (destExists && srcContent.equals(fs.readFileSync(dest))) continue;
+          fs.writeFileSync(dest, srcContent);
+          console.log(`[workspace] ${destExists ? "updated" : "created"} ${path.relative(WORKSPACE_DIR, dest)}`);
+        }
+      }
+    };
+    syncDir(templateDir, WORKSPACE_DIR, true);
+  }
+
   // Sync wrapper token to openclaw.json before every gateway start.
   // This ensures the gateway's config-file token matches what the wrapper injects via proxy.
   console.log(`[gateway] ========== GATEWAY START TOKEN SYNC ==========`);
@@ -1001,6 +1027,18 @@ app.post("/setup/api/patch-config", requireSetupAuth, async (req, res) => {
   } catch (err) {
     console.error("[patch-config] error:", err);
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/setup/api/restart", requireSetupAuth, async (_req, res) => {
+  // Restart the gateway without deleting config. Useful when Telegram
+  // connection drops or after deploying workspace file updates.
+  try {
+    await restartGateway();
+    res.json({ ok: true, message: "Gateway restarted successfully" });
+  } catch (err) {
+    console.error("[/setup/api/restart] error:", err);
+    res.status(500).json({ ok: false, error: String(err) });
   }
 });
 

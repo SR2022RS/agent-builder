@@ -85,10 +85,15 @@
   <div class="card">
     <h2>4) Run onboarding</h2>
     <button id="run">Run setup</button>
+    <button id="restartGateway" class="secondary-button">Restart gateway</button>
     <button id="pairingApprove" class="secondary-button">Approve pairing</button>
     <button id="reset" class="tertiary-button">Reset setup</button>
     <pre id="log"></pre>
-    <p class="muted">Reset deletes the Openclaw config file so you can rerun onboarding. Pairing approval lets you grant DM access when dmPolicy=pairing.</p>
+    <p class="muted">
+      <strong>Restart gateway</strong> — reconnects Telegram/Discord/Slack without re-running full setup. Use when channels stop responding.<br/>
+      <strong>Reset</strong> — deletes the config file so you can rerun onboarding from scratch.<br/>
+      <strong>Approve pairing</strong> — grants DM access when dmPolicy=pairing.
+    </p>
   </div>
 
   <script src="/setup/app.js"></script>
