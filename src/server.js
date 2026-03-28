@@ -247,31 +247,44 @@ async function startGateway() {
     }
   }
 
-  // ─── Fix Telegram allowlist policies ─────────────────────────────────
-  // doctor --fix can leave groupPolicy as "allowlist" with empty allowFrom,
-  // which silently drops ALL messages. Set policies to "open" so the bot
-  // actually responds to users.
+  // ─── Fix Telegram channel policies ──────────────────────────────────
+  // OpenClaw defaults to dmPolicy:"pairing" (requires pairing handshake)
+  // and groupPolicy:"allowlist" (drops all group messages). For a public-
+  // facing bot like Agent Builder, both need to be "open".
   try {
     const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-    const telegramAccounts = config?.channels?.telegram?.accounts;
-    if (telegramAccounts) {
+    const tg = config?.channels?.telegram;
+    if (tg) {
       let dirty = false;
-      for (const [name, acct] of Object.entries(telegramAccounts)) {
-        if (acct.groupPolicy === "allowlist" && (!acct.groupAllowFrom?.length && !acct.allowFrom?.length)) {
-          console.log(`[gateway] Fixing Telegram account "${name}" groupPolicy: allowlist → open`);
-          acct.groupPolicy = "open";
-          dirty = true;
-        }
-        // Also ensure DM policy is open
-        if (acct.dmPolicy === "allowlist" && (!acct.dmAllowFrom?.length && !acct.allowFrom?.length)) {
-          console.log(`[gateway] Fixing Telegram account "${name}" dmPolicy: allowlist → open`);
-          acct.dmPolicy = "open";
-          dirty = true;
+      // Fix top-level telegram policies
+      if (tg.dmPolicy && tg.dmPolicy !== "open") {
+        console.log(`[gateway] Fixing channels.telegram.dmPolicy: ${tg.dmPolicy} → open`);
+        tg.dmPolicy = "open";
+        dirty = true;
+      }
+      if (tg.groupPolicy && tg.groupPolicy !== "open") {
+        console.log(`[gateway] Fixing channels.telegram.groupPolicy: ${tg.groupPolicy} → open`);
+        tg.groupPolicy = "open";
+        dirty = true;
+      }
+      // Fix per-account policies
+      if (tg.accounts) {
+        for (const [name, acct] of Object.entries(tg.accounts)) {
+          if (acct.dmPolicy && acct.dmPolicy !== "open") {
+            console.log(`[gateway] Fixing Telegram "${name}" dmPolicy: ${acct.dmPolicy} → open`);
+            acct.dmPolicy = "open";
+            dirty = true;
+          }
+          if (acct.groupPolicy && acct.groupPolicy !== "open") {
+            console.log(`[gateway] Fixing Telegram "${name}" groupPolicy: ${acct.groupPolicy} → open`);
+            acct.groupPolicy = "open";
+            dirty = true;
+          }
         }
       }
       if (dirty) {
         fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
-        console.log(`[gateway] ✓ Telegram policies fixed`);
+        console.log(`[gateway] ✓ Telegram policies set to open`);
       }
     }
   } catch (err) {
