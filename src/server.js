@@ -1189,7 +1189,10 @@ app.use(async (req, res) => {
     // setting the hash to let the real SPA load on the second request).
     if (req.path === "/" && !req.query.ui && req.accepts("html")) {
       return res.type("text/html").send(
-        `<!doctype html><html><head><meta charset="UTF-8"><script>` +
+        `<!doctype html><html><head><meta charset="UTF-8">` +
+        `<script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments);};</script>` +
+        `<script defer src="/_vercel/insights/script.js"></script>` +
+        `<script>` +
         `location.replace(location.pathname+"?ui=1#token=${OPENCLAW_GATEWAY_TOKEN}")` +
         `</script></head><body></body></html>`,
       );
