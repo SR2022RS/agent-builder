@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrewIQ — AI Agent Teams for Short-Term Rental Operators</title>
+<meta name="description" content="Hire specialized AI agents for your rental business. Scout demand, optimize pricing, build B2B pipelines, and fill units faster — all on autopilot. Join the waitlist.">
+<meta name="keywords" content="AI agents short term rental, STR automation, vacation rental AI, contractor housing automation, PriceLabs automation, Hospitable AI, rental revenue management AI">
+<meta property="og:title" content="CrewIQ — AI Agent Teams for STR Operators">
+<meta property="og:description" content="Your rental business deserves a full-time AI team. Join the waitlist.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #080b10;
+  --bg-2: #0d1117;
+  --bg-3: #111820;
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.12);
+  --cyan: #00e5ff;
+  --green: #00ff88;
+  --purple: #a855f7;
+  --amber: #fbbf24;
+  --red: #ff4d6d;
+  --text: #e8edf5;
+  --text-dim: rgba(232,237,245,0.5);
+  --text-dimmer: rgba(232,237,245,0.28);
+  --glow-cyan: rgba(0,229,255,0.15);
+  --glow-green: rgba(0,255,136,0.12);
+  --glow-purple: rgba(168,85,247,0.15);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* NOISE TEXTURE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.4;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 900;
+  padding: 20px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid transparent;
+  transition: all 0.4s;
+}
+
+nav.scrolled {
+  background: rgba(8,11,16,0.92);
+  border-bottom-color: var(--border);
+  backdrop-filter: blur(16px);
+  padding: 14px 48px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--cyan), var(--green));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bg);
+}
+
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.logo-text span { color: var(--cyan); }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.nav-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.nav-link:hover { color: var(--cyan); }
+
+.btn-waitlist-nav {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--cyan);
+  padding: 10px 20px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.btn-waitlist-nav:hover {
+  background: var(--green);
+  box-shadow: 0 0 20px var(--glow-green);
+}
+
+/* ── HERO ── */
+#hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 120px 24px 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Grid background */
+#hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+}
+
+/* Glow orbs */
+.hero-orb-1 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,229,255,0.08) 0%, transparent 70%);
+  top: -100px;
+  left: -100px;
+  pointer-events: none;
+}
+
+.hero-orb-2 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%);
+  bottom: -100px;
+  right: -100px;
+  pointer-events: none;
+}
+
+.hero-orb-3 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%);
+  bottom: 100px;
+  left: 20%;
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid rgba(0,229,255,0.25);
+  background: rgba(0,229,255,0.05);
+  padding: 8px 16px;
+  border-radius: 30px;
+  margin-bottom: 32px;
+  animation: fadeUp 0.6s ease both;
+}
+
+.eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: blink 2s ease infinite;
+}
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(44px, 7vw, 88px);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -2px;
+  color: var(--text);
+  margin-bottom: 28px;
+  animation: fadeUp 0.6s ease 0.1s both;
+  max-width: 900px;
+}
+
+.hero-title .line-cyan { color: var(--cyan); }
+.hero-title .line-green { color: var(--green); }
+
+.hero-sub {
+  font-size: clamp(16px, 2vw, 19px);
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 560px;
+  font-weight: 300;
+  margin-bottom: 48px;
+  animation: fadeUp 0.6s ease 0.2s both;
+}
+
+/* WAITLIST FORM */
+.waitlist-form {
+  display: flex;
+  gap: 0;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto 20px;
+  animation: fadeUp 0.6s ease 0.3s both;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-bright);
+  box-shadow: 0 0 40px rgba(0,229,255,0.08);
+}
+
+.waitlist-input {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: none;
+  outline: none;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-width: 0;
+}
+
+.waitlist-input::placeholder { color: var(--text-dimmer); }
+
+.waitlist-input:focus {
+  background: rgba(255,255,255,0.06);
+}
+
+.btn-join {
+  background: var(--cyan);
+  color: var(--bg);
+  border: none;
+  padding: 16px 28px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-join:hover {
+  background: var(--green);
+  box-shadow: 0 0 30px var(--glow-green);
+}
+
+.waitlist-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.5px;
+  animation: fadeUp 0.6s ease 0.4s both;
+  margin-bottom: 64px;
+}
+
+.waitlist-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+}
+
+/* FLOATING AGENTS */
+.hero-agents {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s ease 0.5s both;
+}
+
+.agent-float {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: all 0.3s;
+}
+
+.agent-float:hover {
+  border-color: var(--border-bright);
+  background: rgba(255,255,255,0.05);
+  transform: translateY(-2px);
+}
+
+.agent-float .a-icon { font-size: 16px; }
+
+.agent-float .a-status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  margin-left: 4px;
+  animation: blink 2s ease infinite;
+}
+
+/* ── WAITLIST COUNTER ── */
+.counter-bar {
+  background: rgba(0,229,255,0.04);
+  border-top: 1px solid rgba(0,229,255,0.1);
+  border-bottom: 1px solid rgba(0,229,255,0.1);
+  padding: 16px 48px;
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.counter-item {
+  text-align: center;
+}
+
+.counter-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--cyan);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.counter-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+}
+
+/* ── PROBLEM SECTION ── */
+#problem {
+  padding: 100px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.section-sub {
+  font-size: 17px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  font-weight: 300;
+  max-width: 540px;
+}
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 60px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.problem-card {
+  background: var(--bg-2);
+  padding: 40px 36px;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.problem-card:hover { background: var(--bg-3); }
+
+.problem-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dimmer);
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.problem-icon { font-size: 32px; margin-bottom: 16px; display: block; }
+
+.problem-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.problem-desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.problem-tag {
+  display: inline-block;
+  margin-top: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+}
+
+.tag-red { background: rgba(255,77,109,0.1); color: var(--red); border: 1px solid rgba(255,77,109,0.2); }
+.tag-amber { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+.tag-purple { background: rgba(168,85,247,0.1); color: var(--purple); border: 1px solid rgba(168,85,247,0.2); }
+
+/* ── AGENTS SECTION ── */
+#agents {
+  padding: 100px 48px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.agents-header {
+  max-width: 1200px;
+  margin: 0 auto 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.agent-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.agent-card:hover {
+  border-color: rgba(0,229,255,0.2);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,229,255,0.08);
+}
+
+.agent-card:hover::before { opacity: 1; }
+
+.agent-card.rex-card {
+  border-color: rgba(168,85,247,0.3);
+  background: linear-gradient(135deg, var(--bg) 0%, rgba(168,85,247,0.04) 100%);
+}
+
+.agent-card.rex-card::before {
+  background: linear-gradient(90deg, transparent, var(--purple), transparent);
+  opacity: 0.5;
+}
+
+.agent-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.agent-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+}
+
+.agent-price-wrap { text-align: right; }
+
+.agent-price {
+  font-family: 'Space Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cyan);
+  display: block;
+}
+
+.rex-card .agent-price { color: var(--purple); }
+
+.agent-price-unit {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dimmer);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.agent-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 4px;
+  letter-spacing: -0.3px;
+}
+
+.agent-role {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 16px;
+}
+
+.rex-card .agent-role { color: var(--purple); }
+
+.agent-bullets {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.agent-bullets li {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.agent-bullets li::before {
+  content: '→';
+  color: var(--cyan);
+  flex-shrink: 0;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.rex-card .agent-bullets li::before { color: var(--purple); }
+
+.agent-waitlist-note {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-dimmer);
+  text-transform: uppercase;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lock-icon { color: var(--amber); }
+
+.chief-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(168,85,247,0.1);
+  border: 1px solid rgba(168,85,247,0.25);
+  color: var(--purple);
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+  margin-bottom: 16px;
+}
+
+.chief-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--purple);
+  animation: blink 1.5s ease infinite;
+}
+
+/* ── BUNDLES ── */
+#bundles {
+  padding: 100px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.bundles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 60px;
+}
+
+.bundle-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px 32px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.bundle-card.featured {
+  border-color: rgba(0,229,255,0.3);
+  background: linear-gradient(135deg, var(--bg-2) 0%, rgba(0,229,255,0.04) 100%);
+}
+
+.bundle-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+
+.bundle-popular {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cyan);
+  color: var(--bg);
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.bundle-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.bundle-price {
+  font-family: 'Space Mono', monospace;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--cyan);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.bundle-card:not(.featured) .bundle-price { color: var(--text); }
+
+.bundle-period {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.bundle-save {
+  display: inline-block;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.2);
+  color: var(--green);
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+  margin-bottom: 20px;
+}
+
+.bundle-agents {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.bundle-agents li {
+  font-size: 13px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bundle-agents li::before {
+  content: '✓';
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.bundle-desc {
+  font-size: 12px;
+  color: var(--text-dimmer);
+  line-height: 1.6;
+  margin-bottom: 28px;
+  font-style: italic;
+}
+
+.btn-waitlist {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  text-align: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-bright);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-waitlist:hover {
+  background: rgba(0,229,255,0.08);
+  border-color: rgba(0,229,255,0.3);
+  color: var(--cyan);
+}
+
+.featured .btn-waitlist {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--bg);
+}
+
+.featured .btn-waitlist:hover {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 30px var(--glow-green);
+}
+
+/* ── QUESTIONNAIRE ── */
+#questionnaire {
+  padding: 100px 48px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+}
+
+.q-container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.q-header {
+  margin-bottom: 48px;
+}
+
+.q-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.q-section {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 32px 36px;
+}
+
+.q-section:last-child { border-bottom: none; }
+
+.q-section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.q-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0,229,255,0.15);
+}
+
+.q-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.q-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.q-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.q-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dimmer);
+}
+
+.q-required { color: var(--red); margin-left: 3px; }
+
+.q-input,
+.q-select,
+.q-textarea {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.3s;
+  width: 100%;
+}
+
+.q-input:focus,
+.q-select:focus,
+.q-textarea:focus {
+  border-color: rgba(0,229,255,0.35);
+  background: rgba(0,229,255,0.03);
+}
+
+.q-input::placeholder,
+.q-textarea::placeholder { color: var(--text-dimmer); }
+
+.q-select option {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+.q-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+/* Checkbox agent selector */
+.agent-checkboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.agent-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.agent-check-item:hover {
+  border-color: rgba(0,229,255,0.2);
+  background: rgba(0,229,255,0.03);
+}
+
+.agent-check-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.agent-check-item input:checked + .check-label { color: var(--cyan); }
+
+.agent-check-item:has(input:checked) {
+  border-color: rgba(0,229,255,0.3);
+  background: rgba(0,229,255,0.05);
+}
+
+.check-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.3;
+  transition: color 0.2s;
+}
+
+.check-emoji { font-size: 15px; flex-shrink: 0; }
+
+/* Radio buttons */
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.radio-item:hover { border-color: rgba(0,229,255,0.2); }
+
+.radio-item input[type="radio"] { accent-color: var(--cyan); }
+
+.radio-item:has(input:checked) {
+  border-color: rgba(0,229,255,0.3);
+  background: rgba(0,229,255,0.05);
+  color: var(--cyan);
+}
+
+.radio-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: color 0.2s;
+}
+
+.radio-item:has(input:checked) .radio-label { color: var(--cyan); }
+
+.btn-submit {
+  width: 100%;
+  padding: 18px;
+  background: var(--cyan);
+  border: none;
+  border-radius: 0 0 11px 11px;
+  color: var(--bg);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-submit:hover {
+  background: var(--green);
+  box-shadow: 0 0 40px var(--glow-green);
+}
+
+/* Success state */
+.form-success {
+  display: none;
+  text-align: center;
+  padding: 60px 36px;
+  background: var(--bg);
+  border-radius: 12px;
+  border: 1px solid rgba(0,255,136,0.2);
+}
+
+.success-icon { font-size: 48px; margin-bottom: 20px; display: block; }
+
+.success-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+
+.success-msg {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ── HOW IT WORKS ── */
+#how {
+  padding: 100px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 60px;
+  position: relative;
+}
+
+.steps-grid::before {
+  content: '';
+  position: absolute;
+  top: 40px;
+  left: 12.5%;
+  right: 12.5%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.3;
+}
+
+.step {
+  padding: 0 24px;
+  position: relative;
+}
+
+.step-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dimmer);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  flex-shrink: 0;
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+.step-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  line-height: 1.2;
+}
+
+.step-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+/* ── BUILT ON REAL DATA ── */
+#proof {
+  padding: 100px 48px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.proof-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.proof-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.proof-stat {
+  background: var(--bg);
+  padding: 32px 28px;
+  transition: background 0.3s;
+}
+
+.proof-stat:hover { background: var(--bg-3); }
+
+.stat-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--cyan);
+  display: block;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.proof-quote {
+  background: rgba(255,255,255,0.02);
+  border-left: 2px solid var(--cyan);
+  padding: 24px 28px;
+  border-radius: 0 8px 8px 0;
+  margin-top: 24px;
+}
+
+.proof-quote p {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.proof-quote cite {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-style: normal;
+}
+
+/* ── FINAL CTA ── */
+#final-cta {
+  padding: 120px 48px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+#final-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,229,255,0.06) 0%, transparent 70%);
+}
+
+.cta-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.05;
+  color: var(--text);
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.cta-sub {
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 500px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+  font-weight: 300;
+  position: relative;
+}
+
+/* ── FOOTER ── */
+footer {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.footer-left { display: flex; flex-direction: column; gap: 8px; }
+
+.footer-tagline {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 1px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  text-decoration: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.footer-links a:hover { color: var(--cyan); }
+
+.footer-copy {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.5px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(20px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  nav { padding: 16px 24px; }
+  nav.scrolled { padding: 12px 24px; }
+  .nav-right .nav-link { display: none; }
+  section, #problem, #agents, #bundles, #questionnaire, #how, #proof, #final-cta, #bundles { padding: 70px 24px; }
+  .problem-grid { grid-template-columns: 1fr; }
+  .agents-header { flex-direction: column; align-items: flex-start; }
+  .steps-grid { grid-template-columns: 1fr 1fr; }
+  .proof-inner { grid-template-columns: 1fr; gap: 40px; }
+  footer { flex-direction: column; align-items: flex-start; padding: 36px 24px; }
+  .q-row { grid-template-columns: 1fr; }
+  .agent-checkboxes { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .steps-grid { grid-template-columns: 1fr; }
+  .steps-grid::before { display: none; }
+  .bundles-grid { grid-template-columns: 1fr; }
+  .proof-stats { grid-template-columns: 1fr; }
+  .waitlist-form { flex-direction: column; border-radius: 8px; }
+  .waitlist-input { border-radius: 6px 6px 0 0; }
+  .btn-join { border-radius: 0 0 6px 6px; padding: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="/" class="logo">
+    <div class="logo-mark">IQ</div>
+    <span class="logo-text">Crew<span>IQ</span></span>
+  </a>
+  <div class="nav-right">
+    <a href="#agents" class="nav-link">Agents</a>
+    <a href="#bundles" class="nav-link">Pricing</a>
+    <a href="#how" class="nav-link">How It Works</a>
+    <a href="#questionnaire" class="btn-waitlist-nav">Join Waitlist</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-orb-1"></div>
+  <div class="hero-orb-2"></div>
+  <div class="hero-orb-3"></div>
+
+  <div class="hero-eyebrow">
+    <span class="eyebrow-dot"></span>
+    Waitlist Now Open — Limited Early Access
+  </div>
+
+  <h1 class="hero-title">
+    Hire an AI Team<br>
+    <span class="line-cyan">for Your Rental</span><br>
+    <span class="line-green">Business.</span>
+  </h1>
+
+  <p class="hero-sub">
+    Specialized AI agents that scout contractor demand, optimize pricing, 
+    build B2B pipelines, and fill your units — working 24/7 while you run your business.
+  </p>
+
+  <div class="waitlist-form" role="form" aria-label="Join the CrewIQ waitlist">
+    <input
+      type="email"
+      class="waitlist-input"
+      id="heroEmail"
+      placeholder="Enter your email to join the waitlist"
+      aria-label="Email address"
+    >
+    <button class="btn-join" onclick="heroWaitlist()">Join Waitlist →</button>
+  </div>
+
+  <p class="waitlist-meta">
+    <span class="waitlist-count">● 47 operators</span> already on the list · No spam · Cancel anytime
+  </p>
+
+  <div class="hero-agents" aria-label="Available AI agents">
+    <div class="agent-float"><span class="a-icon">🔍</span> Scout <span class="a-status"></span></div>
+    <div class="agent-float"><span class="a-icon">💰</span> RateBrain <span class="a-status"></span></div>
+    <div class="agent-float"><span class="a-icon">👥</span> GuestKeeper <span class="a-status"></span></div>
+    <div class="agent-float"><span class="a-icon">✍️</span> Pen <span class="a-status"></span></div>
+    <div class="agent-float"><span class="a-icon">🏢</span> Pipeline <span class="a-status"></span></div>
+    <div class="agent-float"><span class="a-icon">📊</span> Watchtower <span class="a-status"></span></div>
+    <div class="agent-float" style="border-color:rgba(168,85,247,0.3)"><span class="a-icon">🤖</span> Rex <span class="a-status" style="background:var(--purple)"></span></div>
+  </div>
+</section>
+
+<!-- COUNTER BAR -->
+<div class="counter-bar" role="complementary">
+  <div class="counter-item">
+    <span class="counter-num">7</span>
+    <span class="counter-label">AI Agents</span>
+  </div>
+  <div class="counter-item">
+    <span class="counter-num">24/7</span>
+    <span class="counter-label">Always On</span>
+  </div>
+  <div class="counter-item">
+    <span class="counter-num">90%</span>
+    <span class="counter-label">Direct Booking Rate</span>
+  </div>
+  <div class="counter-item">
+    <span class="counter-num">48hr</span>
+    <span class="counter-label">Setup Time</span>
+  </div>
+  <div class="counter-item">
+    <span class="counter-num">$0</span>
+    <span class="counter-label">Platform Fees</span>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="section-eyebrow">The Problem</div>
+  <h2 class="section-title reveal">Running a rental business<br>is a full-time job.<br><span style="color:var(--cyan)">It shouldn't be.</span></h2>
+  <p class="section-sub reveal">Most STR operators are reactive — waiting for bookings, adjusting prices manually, and leaving contractor and corporate demand completely untapped.</p>
+
+  <div class="problem-grid">
+    <div class="problem-card reveal">
+      <div class="problem-num">01 —</div>
+      <span class="problem-icon">📉</span>
+      <h3 class="problem-title">You're leaving money on the table</h3>
+      <p class="problem-desc">Manual pricing misses contractor demand spikes, refinery turnarounds, and local events. By the time you adjust, the opportunity is gone.</p>
+      <span class="problem-tag tag-red">Revenue Loss</span>
+    </div>
+    <div class="problem-card reveal">
+      <div class="problem-num">02 —</div>
+      <span class="problem-icon">👻</span>
+      <h3 class="problem-title">Your best guests never come back</h3>
+      <p class="problem-desc">Contractor crews and corporate clients move on because nobody followed up. No system. No relationship. No repeat bookings.</p>
+      <span class="problem-tag tag-amber">Lost Retention</span>
+    </div>
+    <div class="problem-card reveal">
+      <div class="problem-num">03 —</div>
+      <span class="problem-icon">🚫</span>
+      <h3 class="problem-title">You have zero B2B pipeline</h3>
+      <p class="problem-desc">Staffing agencies, insurance adjusters, military TDY coordinators — these are your highest-value clients. Most operators never reach them.</p>
+      <span class="problem-tag tag-purple">Missed Pipeline</span>
+    </div>
+  </div>
+</section>
+
+<!-- AGENTS -->
+<section id="agents">
+  <div class="agents-header">
+    <div>
+      <div class="section-eyebrow">Your New Team</div>
+      <h2 class="section-title reveal">Meet the Agents</h2>
+      <p class="section-sub reveal">Each agent is specialized, always-on, and built from real STR operational data. Hire one or build the full team.</p>
+    </div>
+  </div>
+
+  <div class="agents-grid">
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">🔍</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$49</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">Scout</div>
+      <div class="agent-role">Demand Intelligence Agent</div>
+      <ul class="agent-bullets">
+        <li>Monitors contractor hiring spikes near your properties daily — refinery turnarounds, shipyard contracts, plant maintenance</li>
+        <li>Tracks local events, construction permits, and infrastructure projects before they hit the news</li>
+        <li>Sends demand signals to RateBrain and Rex before your competitors know they exist</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">💰</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$79</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">RateBrain</div>
+      <div class="agent-role">Yield Optimization Engine</div>
+      <ul class="agent-bullets">
+        <li>Analyzes occupancy and sets optimal pricing tiers automatically — nightly, weekly, and monthly rates</li>
+        <li>Hold vs Fill logic: knows when to wait for a 30-day contractor vs fill a 2-night gap</li>
+        <li>Connects directly to PriceLabs — never goes below your price floor, ever</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">👥</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$69</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">GuestKeeper</div>
+      <div class="agent-role">Relationship & Retention Engine</div>
+      <ul class="agent-bullets">
+        <li>Tracks every guest and company that's stayed with you — builds profiles, flags repeat patterns</li>
+        <li>Identifies re-engagement opportunities and drafts personalized messages via your PMS</li>
+        <li>Builds company-level profiles for contractor crews and staffing agencies over time</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">✍️</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$69</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">Pen</div>
+      <div class="agent-role">B2B & B2C Messaging Agent</div>
+      <ul class="agent-bullets">
+        <li>Writes outreach to staffing agencies, insurance adjusters, and HR departments at nearby employers</li>
+        <li>Drafts personalized re-engagement messages for past guests with the right timing and tone</li>
+        <li>Always asks your approval before anything is sent — you stay in control</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">🏢</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$89</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">Pipeline</div>
+      <div class="agent-role">Lead Generation Engine</div>
+      <ul class="agent-bullets">
+        <li>Finds contractor companies, construction firms, and staffing agencies operating near your properties weekly</li>
+        <li>Researches insurance ALE providers, military TDY coordinators, and government housing contacts</li>
+        <li>Delivers a weekly lead report with contact info, relevance scores, and outreach angles</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card reveal">
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap">📊</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$49</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">Watchtower</div>
+      <div class="agent-role">Portfolio Monitoring Agent</div>
+      <ul class="agent-bullets">
+        <li>Daily performance reports on occupancy, revenue, and gaps across your full portfolio</li>
+        <li>Instant alerts for cancellations, pricing opportunities, and anomalies that need attention</li>
+        <li>Tracks your KPIs week-over-week so you always know exactly where you stand</li>
+      </ul>
+      <div class="agent-waitlist-note"><span class="lock-icon">🔒</span> Available at launch — join waitlist to reserve</div>
+    </div>
+
+    <div class="agent-card rex-card reveal" style="grid-column: span 1;">
+      <div class="chief-badge"><span class="chief-dot"></span> Chief Agent</div>
+      <div class="agent-card-header">
+        <div class="agent-icon-wrap" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.2);">🤖</div>
+        <div class="agent-price-wrap">
+          <span class="agent-price">$99</span>
+          <span class="agent-price-unit">/month</span>
+        </div>
+      </div>
+      <div class="agent-name">Rex</div>
+      <div class="agent-role">Workforce Revenue Director</div>
+      <ul class="agent-bullets">
+        <li>Coordinates all your other agents and synthesizes their findings into clear daily action plans</li>
+        <li>Sends you a morning briefing via Telegram or WhatsApp — occupancy, signals, leads, and priorities</li>
+        <li>Asks your approval before anything significant happens. You stay the boss.</li>
+      </ul>
+      <div class="agent-waitlist-note" style="border-color:rgba(168,85,247,0.15);">
+        <span style="color:var(--amber)">⚠</span> Requires at least 2 other agents · The team starts here
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- BUNDLES -->
+<section id="bundles">
+  <div class="section-eyebrow">Pricing</div>
+  <h2 class="section-title reveal">Build Your Team.<br>Pay Per Agent.</h2>
+  <p class="section-sub reveal">Start with what you need. Add agents as your business grows. Cancel any time — no contracts, no surprises.</p>
+
+  <div class="bundles-grid">
+
+    <div class="bundle-card reveal">
+      <div class="bundle-name">Starter</div>
+      <div class="bundle-price">$179</div>
+      <div class="bundle-period">/month</div>
+      <span class="bundle-save">Save $48/mo</span>
+      <p class="bundle-desc">"Perfect for operators who want smarter pricing and demand intelligence before anything else."</p>
+      <ul class="bundle-agents">
+        <li>🔍 Scout — Demand Intelligence</li>
+        <li>💰 RateBrain — Yield Optimization</li>
+        <li>🤖 Rex — Chief Agent + Daily Briefing</li>
+      </ul>
+      <a href="#questionnaire" class="btn-waitlist">Join Waitlist →</a>
+    </div>
+
+    <div class="bundle-card featured reveal">
+      <div class="bundle-popular">Most Popular</div>
+      <div class="bundle-name">Growth</div>
+      <div class="bundle-price">$299</div>
+      <div class="bundle-period">/month</div>
+      <span class="bundle-save">Save $86/mo</span>
+      <p class="bundle-desc">"For operators ready to grow direct bookings and build serious B2B relationships."</p>
+      <ul class="bundle-agents">
+        <li>🔍 Scout — Demand Intelligence</li>
+        <li>💰 RateBrain — Yield Optimization</li>
+        <li>👥 GuestKeeper — Relationships</li>
+        <li>✍️ Pen — B2B Outreach</li>
+        <li>🤖 Rex — Chief Agent + Daily Briefing</li>
+      </ul>
+      <a href="#questionnaire" class="btn-waitlist">Join Waitlist →</a>
+    </div>
+
+    <div class="bundle-card reveal">
+      <div class="bundle-name">Full Stack</div>
+      <div class="bundle-price">$449</div>
+      <div class="bundle-period">/month</div>
+      <span class="bundle-save">Save $84/mo</span>
+      <p class="bundle-desc">"The complete AI property management team. Nothing slips through the cracks."</p>
+      <ul class="bundle-agents">
+        <li>All 7 agents included</li>
+        <li>🔍 Scout + 💰 RateBrain</li>
+        <li>👥 GuestKeeper + ✍️ Pen</li>
+        <li>🏢 Pipeline + 📊 Watchtower</li>
+        <li>🤖 Rex — Chief Agent</li>
+      </ul>
+      <a href="#questionnaire" class="btn-waitlist">Join Waitlist →</a>
+    </div>
+
+    <div class="bundle-card reveal" style="border-color:rgba(251,191,36,0.2);">
+      <div class="bundle-name">Enterprise</div>
+      <div class="bundle-price">$699</div>
+      <div class="bundle-period">/month</div>
+      <span class="bundle-save" style="background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.2);color:var(--amber);">White Glove</span>
+      <p class="bundle-desc">"All agents plus custom setup, onboarding call, and market-specific configuration for your portfolio."</p>
+      <ul class="bundle-agents">
+        <li>Everything in Full Stack</li>
+        <li>Custom market configuration</li>
+        <li>1-on-1 onboarding call</li>
+        <li>Priority support channel</li>
+      </ul>
+      <a href="#questionnaire" class="btn-waitlist">Join Waitlist →</a>
+    </div>
+
+  </div>
+
+  <p style="margin-top:32px;font-family:'Space Mono',monospace;font-size:10px;color:var(--text-dimmer);letter-spacing:1px;text-align:center;">
+    ONE-TIME SETUP FEE: $197 · WAIVED FOR ANNUAL PLANS · ANNUAL PLANS: 2 MONTHS FREE
+  </p>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:100px 48px;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-eyebrow">Process</div>
+    <h2 class="section-title reveal">Up and Running<br>in 48 Hours</h2>
+
+    <div class="steps-grid" style="margin-top:60px;">
+      <div class="step reveal">
+        <div class="step-num"><span class="step-dot"></span> 01</div>
+        <div class="step-title">Fill Out the Intake Form</div>
+        <p class="step-desc">Tell us about your properties, your PMS, your market, and the agents you want. The more detail, the better your agents perform.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num"><span class="step-dot" style="background:var(--green);box-shadow:0 0 10px var(--green)"></span> 02</div>
+        <div class="step-title">We Build & Connect</div>
+        <p class="step-desc">We configure your agents for your specific market, connect to your Hospitable, PriceLabs, and communication channels. One call, we handle setup.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num"><span class="step-dot" style="background:var(--purple);box-shadow:0 0 10px var(--purple)"></span> 03</div>
+        <div class="step-title">Agents Go to Work</div>
+        <p class="step-desc">Your agents start monitoring, analyzing, and finding opportunities immediately. Contractor demand signals, pricing gaps, guest follow-ups — all automated.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num"><span class="step-dot" style="background:var(--amber);box-shadow:0 0 10px var(--amber)"></span> 04</div>
+        <div class="step-title">You Approve, They Execute</div>
+        <p class="step-desc">Every morning Rex briefs you via Telegram or WhatsApp. You approve what matters. Agents handle the rest. You stay the boss.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROOF -->
+<section id="proof">
+  <div class="proof-inner">
+    <div>
+      <div class="section-eyebrow">Built on Real Data</div>
+      <h2 class="section-title reveal">Not Theory.<br>Built From a<br><span style="color:var(--cyan)">Real STR Business.</span></h2>
+      <p class="section-sub reveal" style="margin-bottom:24px;">CrewIQ was built by an STR operator in Moss Point, MS who manages 8 furnished units serving contractors at Chevron, Ingalls Shipbuilding, and Plant Daniels Power Plant.</p>
+      <div class="proof-quote reveal">
+        <p>"Our techs stayed at this home for a full year while working at the nearby shipyard. The location was perfect. They provided everything you need for a comfortable long-term stay."</p>
+        <cite>— Sheila · Direct Booking · September 2025</cite>
+      </div>
+    </div>
+    <div class="proof-stats reveal">
+      <div class="proof-stat">
+        <span class="stat-num">8</span>
+        <span class="stat-label">Properties managed and battle-tested on this system</span>
+      </div>
+      <div class="proof-stat">
+        <span class="stat-num">90%</span>
+        <span class="stat-label">Direct booking rate — no Airbnb dependency</span>
+      </div>
+      <div class="proof-stat">
+        <span class="stat-num">1yr+</span>
+        <span class="stat-label">Longest single contractor stay achieved</span>
+      </div>
+      <div class="proof-stat">
+        <span class="stat-num">24/7</span>
+        <span class="stat-label">Monitoring across all units, all channels, always on</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUESTIONNAIRE / WAITLIST FORM -->
+<section id="questionnaire">
+  <div class="q-container">
+    <div class="q-header">
+      <div class="section-eyebrow">Waitlist Application</div>
+      <h2 class="section-title reveal">Reserve Your Spot.<br><span style="color:var(--cyan)">Tell Us About<br>Your Business.</span></h2>
+      <p class="section-sub reveal" style="margin-top:16px;">We're onboarding operators carefully to make sure every agent deployment is dialed in. Fill out the form below and we'll reach out when your spot is ready.</p>
+    </div>
+
+    <div class="q-form reveal" id="waitlistForm">
+
+      <!-- SECTION 1: CONTACT -->
+      <div class="q-section">
+        <div class="q-section-label">01 · Contact Info</div>
+        <div class="q-fields">
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">First Name <span class="q-required">*</span></label>
+              <input type="text" class="q-input" placeholder="Rodney" required>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Last Name <span class="q-required">*</span></label>
+              <input type="text" class="q-input" placeholder="Smith">
+            </div>
+          </div>
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Email Address <span class="q-required">*</span></label>
+              <input type="email" class="q-input" placeholder="you@example.com" required>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Phone / WhatsApp</label>
+              <input type="tel" class="q-input" placeholder="+1 (555) 000-0000">
+            </div>
+          </div>
+          <div class="q-field">
+            <label class="q-label">Preferred Briefing Channel <span class="q-required">*</span></label>
+            <div class="radio-group">
+              <label class="radio-item"><input type="radio" name="channel" value="telegram"> <span class="radio-label">📱 Telegram</span></label>
+              <label class="radio-item"><input type="radio" name="channel" value="whatsapp"> <span class="radio-label">💬 WhatsApp</span></label>
+              <label class="radio-item"><input type="radio" name="channel" value="email"> <span class="radio-label">✉️ Email</span></label>
+              <label class="radio-item"><input type="radio" name="channel" value="slack"> <span class="radio-label">🔔 Slack</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: PORTFOLIO -->
+      <div class="q-section">
+        <div class="q-section-label">02 · Your Portfolio</div>
+        <div class="q-fields">
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Number of Properties <span class="q-required">*</span></label>
+              <select class="q-select" required>
+                <option value="" disabled selected>Select range</option>
+                <option>1 property</option>
+                <option>2–5 properties</option>
+                <option>6–10 properties</option>
+                <option>11–25 properties</option>
+                <option>25+ properties</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Primary Market / City <span class="q-required">*</span></label>
+              <input type="text" class="q-input" placeholder="e.g. Moss Point, MS">
+            </div>
+          </div>
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Average Stay Length</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Mostly nightly (1–3 nights)</option>
+                <option>Mix of short and extended</option>
+                <option>Mostly weekly (7–13 nights)</option>
+                <option>Mostly monthly (30+ nights)</option>
+                <option>Long-term contractor / workforce</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Direct Booking % (approx)</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Less than 20%</option>
+                <option>20–50%</option>
+                <option>50–80%</option>
+                <option>80%+ (mostly direct)</option>
+              </select>
+            </div>
+          </div>
+          <div class="q-field">
+            <label class="q-label">Primary Guest Type <span class="q-required">*</span></label>
+            <div class="radio-group">
+              <label class="radio-item"><input type="radio" name="guesttype" value="contractors"> <span class="radio-label">🔧 Contractors / Workforce</span></label>
+              <label class="radio-item"><input type="radio" name="guesttype" value="leisure"> <span class="radio-label">🏖 Leisure / Tourism</span></label>
+              <label class="radio-item"><input type="radio" name="guesttype" value="corporate"> <span class="radio-label">💼 Corporate / Business</span></label>
+              <label class="radio-item"><input type="radio" name="guesttype" value="military"> <span class="radio-label">🪖 Military / TDY</span></label>
+              <label class="radio-item"><input type="radio" name="guesttype" value="insurance"> <span class="radio-label">🏠 Insurance / ALE</span></label>
+              <label class="radio-item"><input type="radio" name="guesttype" value="mixed"> <span class="radio-label">🔀 Mixed</span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: TECH STACK -->
+      <div class="q-section">
+        <div class="q-section-label">03 · Your Tech Stack</div>
+        <div class="q-fields">
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Property Management System (PMS) <span class="q-required">*</span></label>
+              <select class="q-select" required>
+                <option value="" disabled selected>Select your PMS</option>
+                <option>Hospitable</option>
+                <option>Guesty</option>
+                <option>Hostaway</option>
+                <option>OwnerRez</option>
+                <option>Lodgify</option>
+                <option>Uplisting</option>
+                <option>Streamline</option>
+                <option>Track</option>
+                <option>Other (specify in notes)</option>
+                <option>No PMS currently</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Dynamic Pricing Tool</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>PriceLabs</option>
+                <option>Wheelhouse</option>
+                <option>Beyond Pricing</option>
+                <option>AirDNA</option>
+                <option>Manual pricing only</option>
+                <option>No pricing tool</option>
+              </select>
+            </div>
+          </div>
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Channels You List On</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select primary</option>
+                <option>Airbnb only</option>
+                <option>Airbnb + VRBO</option>
+                <option>Multiple OTAs + Direct</option>
+                <option>Direct only</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Do You Have a Direct Booking Website?</label>
+              <div class="radio-group" style="margin-top:8px;">
+                <label class="radio-item"><input type="radio" name="directsite" value="yes"> <span class="radio-label">Yes</span></label>
+                <label class="radio-item"><input type="radio" name="directsite" value="no"> <span class="radio-label">No</span></label>
+                <label class="radio-item"><input type="radio" name="directsite" value="building"> <span class="radio-label">Building one</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 4: MARKET CONTEXT -->
+      <div class="q-section">
+        <div class="q-section-label">04 · Market & Demand Context</div>
+        <div class="q-fields">
+          <div class="q-field">
+            <label class="q-label">Major Employers / Job Sites Near Your Properties</label>
+            <textarea class="q-textarea" placeholder="e.g. Chevron Refinery (8 min), Ingalls Shipbuilding (10 min), Power Plant (15 min)..." style="min-height:80px;"></textarea>
+          </div>
+          <div class="q-field">
+            <label class="q-label">Biggest Demand Drivers in Your Market</label>
+            <div class="radio-group">
+              <label class="radio-item"><input type="radio" name="demand" value="industrial"> <span class="radio-label">🏭 Industrial / Refinery</span></label>
+              <label class="radio-item"><input type="radio" name="demand" value="military"> <span class="radio-label">🪖 Military Base Nearby</span></label>
+              <label class="radio-item"><input type="radio" name="demand" value="medical"> <span class="radio-label">🏥 Hospital / Medical</span></label>
+              <label class="radio-item"><input type="radio" name="demand" value="tourism"> <span class="radio-label">🏖 Tourism / Seasonal</span></label>
+              <label class="radio-item"><input type="radio" name="demand" value="corporate"> <span class="radio-label">🏢 Corporate / Events</span></label>
+              <label class="radio-item"><input type="radio" name="demand" value="disaster"> <span class="radio-label">⛈ Disaster / Insurance</span></label>
+            </div>
+          </div>
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">Current Avg Occupancy Rate</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Below 40%</option>
+                <option>40–60%</option>
+                <option>60–75%</option>
+                <option>75–90%</option>
+                <option>90%+</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">Biggest Current Challenge</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Filling vacancy gaps</option>
+                <option>Pricing optimization</option>
+                <option>Getting direct bookings</option>
+                <option>Building B2B pipeline</option>
+                <option>Guest re-engagement</option>
+                <option>All of the above</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 5: AGENT SELECTION -->
+      <div class="q-section">
+        <div class="q-section-label">05 · Which Agents Interest You?</div>
+        <div class="q-fields">
+          <div class="agent-checkboxes">
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="scout">
+              <span class="check-emoji">🔍</span>
+              <span class="check-label"><strong>Scout</strong> — $49/mo<br>Demand Intelligence</span>
+            </label>
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="ratebrain">
+              <span class="check-emoji">💰</span>
+              <span class="check-label"><strong>RateBrain</strong> — $79/mo<br>Yield Optimization</span>
+            </label>
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="guestkeeper">
+              <span class="check-emoji">👥</span>
+              <span class="check-label"><strong>GuestKeeper</strong> — $69/mo<br>Guest Relationships</span>
+            </label>
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="pen">
+              <span class="check-emoji">✍️</span>
+              <span class="check-label"><strong>Pen</strong> — $69/mo<br>B2B & B2C Messaging</span>
+            </label>
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="pipeline">
+              <span class="check-emoji">🏢</span>
+              <span class="check-label"><strong>Pipeline</strong> — $89/mo<br>Lead Generation</span>
+            </label>
+            <label class="agent-check-item">
+              <input type="checkbox" name="agents" value="watchtower">
+              <span class="check-emoji">📊</span>
+              <span class="check-label"><strong>Watchtower</strong> — $49/mo<br>Portfolio Monitoring</span>
+            </label>
+            <label class="agent-check-item" style="border-color:rgba(168,85,247,0.2);">
+              <input type="checkbox" name="agents" value="rex">
+              <span class="check-emoji">🤖</span>
+              <span class="check-label"><strong>Rex</strong> — $99/mo<br>Chief Agent (needs 2+ agents)</span>
+            </label>
+            <label class="agent-check-item" style="background:rgba(0,229,255,0.03);border-color:rgba(0,229,255,0.15);">
+              <input type="checkbox" name="agents" value="fullstack">
+              <span class="check-emoji">⚡</span>
+              <span class="check-label"><strong>Full Stack</strong> — $449/mo<br>All 7 agents bundled</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 6: GOALS -->
+      <div class="q-section">
+        <div class="q-section-label">06 · Goals & Context</div>
+        <div class="q-fields">
+          <div class="q-field">
+            <label class="q-label">What's Your #1 Goal for the Next 90 Days?</label>
+            <textarea class="q-textarea" placeholder="e.g. Fill 3 vacant units with contractor crews, build a pipeline of staffing agencies, get direct bookings up to 80%..."></textarea>
+          </div>
+          <div class="q-field">
+            <label class="q-label">Anything Else We Should Know About Your Business?</label>
+            <textarea class="q-textarea" placeholder="Local employers, seasonal patterns, current tools, specific challenges, goals for your portfolio..."></textarea>
+          </div>
+          <div class="q-row">
+            <div class="q-field">
+              <label class="q-label">How Did You Hear About CrewIQ?</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Social media</option>
+                <option>Word of mouth / referral</option>
+                <option>Search (Google)</option>
+                <option>STR community / forum</option>
+                <option>Direct from founder</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="q-field">
+              <label class="q-label">When Are You Ready to Start?</label>
+              <select class="q-select">
+                <option value="" disabled selected>Select</option>
+                <option>Immediately (as soon as spot opens)</option>
+                <option>Within 30 days</option>
+                <option>1–3 months</option>
+                <option>Just exploring for now</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="btn-submit" onclick="submitForm()">
+        Submit Application — Join the Waitlist →
+      </button>
+    </div>
+
+    <!-- SUCCESS STATE -->
+    <div class="form-success" id="formSuccess">
+      <span class="success-icon">✅</span>
+      <div class="success-title">You're on the list.</div>
+      <p class="success-msg">We've received your application and will review your portfolio details. Expect to hear from us within 48 hours with next steps and your onboarding timeline.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section id="final-cta">
+  <h2 class="cta-title reveal">Your Competition Is Still<br>Doing This <span style="color:var(--cyan)">Manually.</span></h2>
+  <p class="cta-sub reveal">Every day without intelligent agents is a day of missed contractor bookings, stale pricing, and guests who never came back.</p>
+  <a href="#questionnaire" class="btn-waitlist-nav" style="font-size:13px;padding:16px 36px;border-radius:6px;">Apply for Early Access →</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    <a href="/" class="logo" style="text-decoration:none;">
+      <div class="logo-mark">IQ</div>
+      <span class="logo-text">Crew<span>IQ</span></span>
+    </a>
+    <span class="footer-tagline">AI-powered agent teams for serious STR operators · Built on real data · Moss Point, MS</span>
+  </div>
+  <div class="footer-links">
+    <a href="#agents">Agents</a>
+    <a href="#bundles">Pricing</a>
+    <a href="#how">How It Works</a>
+    <a href="#questionnaire">Waitlist</a>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+  </div>
+  <span class="footer-copy">© 2026 CrewIQ · Powered by Claude AI</span>
+</footer>
+
+<script>
+// NAV SCROLL
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40);
+});
+
+// SCROLL REVEAL
+const observer = new IntersectionObserver(entries => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), i * 60);
+    }
+  });
+}, { threshold: 0.08 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// HERO WAITLIST
+function heroWaitlist() {
+  const email = document.getElementById('heroEmail').value;
+  if (!email || !email.includes('@')) {
+    document.getElementById('heroEmail').style.borderColor = 'rgba(255,77,109,0.5)';
+    document.getElementById('heroEmail').placeholder = 'Please enter a valid email';
+    return;
+  }
+  const btn = document.querySelector('.btn-join');
+  btn.textContent = '✓ You\'re on the list!';
+  btn.style.background = 'var(--green)';
+  btn.style.pointerEvents = 'none';
+
+  // Update counter
+  const countEl = document.querySelector('.waitlist-count');
+  countEl.textContent = '● 48 operators';
+
+  localStorage.setItem('crewiq_waitlist', email);
+}
+
+// FORM SUBMIT
+function submitForm() {
+  const btn = document.querySelector('.btn-submit');
+  btn.textContent = 'Submitting...';
+  btn.style.opacity = '0.7';
+
+  setTimeout(() => {
+    document.getElementById('waitlistForm').style.display = 'none';
+    document.getElementById('formSuccess').style.display = 'block';
+    window.scrollTo({ top: document.getElementById('questionnaire').offsetTop - 80, behavior: 'smooth' });
+  }, 1200);
+}
+
+// SMOOTH ANCHOR SCROLL
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+// RETURNING VISITOR
+const visited = localStorage.getItem('crewiq_visited');
+if (visited) {
+  document.querySelector('.hero-eyebrow').innerHTML =
+    '<span class="eyebrow-dot"></span> Welcome back — Waitlist Still Open';
+}
+localStorage.setItem('crewiq_visited', Date.now());
+</script>
+
+</body>
+</html>

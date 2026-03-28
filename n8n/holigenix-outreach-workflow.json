@@ -1,0 +1,123 @@
+{
+  "name": "Holigenix — Outreach Agent (Daily Email Campaigns)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "weekday-9am",
+      "name": "Weekday 9am ET",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Holigenix Outreach Agent — Configuration\n// ============================================================\n// SETUP: Replace YOUR_* placeholders with real credentials\n// Then set DRY_RUN to false when ready to send live emails\n// ============================================================\n\nreturn [{\n  json: {\n    // Supabase (Holigenix Growth Engine)\n    SUPABASE_URL: 'https://shrxkkbgmckbezmlssbg.supabase.co',\n    SUPABASE_SERVICE_KEY: 'YOUR_HOLIGENIX_SUPABASE_SERVICE_KEY',\n\n    // Claude API (for email drafting)\n    ANTHROPIC_API_KEY: 'YOUR_ANTHROPIC_API_KEY',\n\n    // Gmail (send from admin@holigenixhealthcare.com)\n    // Use OAuth access token from Google Cloud Console\n    GMAIL_ACCESS_TOKEN: 'YOUR_GMAIL_OAUTH_ACCESS_TOKEN',\n    SENDER_EMAIL: 'admin@holigenixhealthcare.com',\n    SENDER_NAME: 'Rodney Williams',\n\n    // Campaign settings\n    MAX_EMAILS_PER_RUN: 5,\n    DRY_RUN: true  // true = draft + log only, false = draft + send + log\n  }\n}];"
+      },
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Query Supabase for contacts due for outreach\n// Applies cadence rules from outreach_agent_prompt.md:\n//   New → introductory (immediate)\n//   Contacted (no reply) → follow_up (every 10-14d, max 3)\n//   Engaged → nurture (every 7-10d)\n//   Active Partner → thank_you (every 14-21d)\n//   Cold → re_engagement (at 30d, then monthly)\n//   Exhausted (3+ no reply) → SKIP\n// ============================================================\nconst cfg = $('Config').first().json;\nconst headers = {\n  'apikey': cfg.SUPABASE_SERVICE_KEY,\n  'Authorization': 'Bearer ' + cfg.SUPABASE_SERVICE_KEY\n};\nconst today = new Date().toISOString().split('T')[0];\n\n// 1. Fetch all contacts with email addresses\nlet contacts = [];\ntry {\n  contacts = await this.helpers.httpRequest({\n    method: 'GET',\n    url: cfg.SUPABASE_URL + '/rest/v1/crm_referral_sources?select=*&email=not.is.null&order=relationship_score.desc',\n    headers\n  });\n} catch(e) {\n  return [{ json: { error: 'Failed to fetch contacts: ' + e.message, contacts_due: 0, batch: [] }}];\n}\n\n// 2. Fetch recent outreach emails (last 60 days)\nlet recentEmails = [];\ntry {\n  const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();\n  recentEmails = await this.helpers.httpRequest({\n    method: 'GET',\n    url: cfg.SUPABASE_URL + '/rest/v1/outreach_emails?select=contact_email,sent_at,campaign_type,status&sent_at=gte.' + cutoff + '&order=sent_at.desc',\n    headers\n  });\n} catch(e) { /* table may not exist yet — OK for first run */ }\n\n// 3. Build outreach history lookup\nconst historyMap = {};\nfor (const em of recentEmails) {\n  if (!historyMap[em.contact_email]) historyMap[em.contact_email] = [];\n  historyMap[em.contact_email].push(em);\n}\n\n// 4. Fetch hospital directory for enrichment\nlet hospitals = [];\ntry {\n  hospitals = await this.helpers.httpRequest({\n    method: 'GET',\n    url: cfg.SUPABASE_URL + '/rest/v1/hospital_directory?select=name,nicu_flag,pediatric_flag,tier,city',\n    headers\n  });\n} catch(e) {}\nconst hospMap = {};\nfor (const h of hospitals) { hospMap[h.name] = h; }\n\n// 5. Apply cadence rules\nconst due = [];\nfor (const c of contacts) {\n  const history = historyMap[c.email] || [];\n  const stage = (c.stage || 'new').toLowerCase();\n  const outreachCount = history.length;\n  const lastSent = history.length > 0 ? new Date(history[0].sent_at) : null;\n  const daysSince = lastSent\n    ? Math.floor((Date.now() - lastSent.getTime()) / 86400000)\n    : 999;\n\n  let messageType = null;\n  let priority = 0;\n\n  if (stage === 'exhausted' || (stage === 'contacted' && outreachCount >= 3)) {\n    continue; // SKIP exhausted contacts\n  } else if ((stage === 'new' || !stage) && outreachCount === 0) {\n    messageType = 'introductory';\n    priority = 80;\n  } else if (stage === 'contacted' && daysSince >= 10) {\n    messageType = 'follow_up';\n    priority = 90; // overdue follow-ups are highest priority\n  } else if (stage === 'engaged' && daysSince >= 7) {\n    messageType = 'nurture';\n    priority = 70;\n  } else if (stage === 'active_partner' && daysSince >= 14) {\n    messageType = 'thank_you';\n    priority = 50;\n  } else if (stage === 'cold' && daysSince >= 30) {\n    messageType = 're_engagement';\n    priority = 60;\n  }\n\n  if (messageType) {\n    const hosp = hospMap[c.organization || c.company_name] || {};\n    due.push({\n      contact_name: c.contact_name || c.name || ((c.first_name || '') + ' ' + (c.last_name || '')).trim(),\n      email: c.email,\n      title: c.title || '',\n      organization: c.organization || c.company_name || '',\n      department: c.department || '',\n      stage: c.stage,\n      relationship_score: c.relationship_score || 0,\n      hospital_nicu_flag: hosp.nicu_flag || c.hospital_nicu_flag || false,\n      hospital_tier: hosp.tier || c.hospital_tier || null,\n      message_type: messageType,\n      priority,\n      outreach_count: outreachCount,\n      days_since_last_email: daysSince\n    });\n  }\n}\n\n// Sort by priority desc, cap at MAX_EMAILS_PER_RUN\ndue.sort((a, b) => b.priority - a.priority);\nconst batch = due.slice(0, cfg.MAX_EMAILS_PER_RUN);\n\nreturn [{ json: {\n  contacts_due: batch.length,\n  contacts_total: contacts.length,\n  contacts_skipped: contacts.length - batch.length,\n  batch,\n  date: today\n}}];"
+      },
+      "id": "fetch-contacts",
+      "name": "Fetch Due Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-contacts",
+              "leftValue": "={{ $json.contacts_due }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-has-contacts",
+      "name": "Has Contacts Due?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [720, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Outreach Agent — Draft personalized emails via Claude\n// System prompt encodes all rules from outreach_agent_prompt.md\n// ============================================================\nconst cfg = $('Config').first().json;\nconst data = $input.first().json;\nconst batch = data.batch;\n\nif (!batch || batch.length === 0) {\n  return [{ json: { drafts: [], count: 0, errors: 0 }}];\n}\n\nconst SYSTEM_PROMPT = `You are the Outreach Agent for Holigenix Healthcare LLC — a GAPP-approved pediatric home healthcare agency in Georgia specializing in technology-dependent children (ventilators, tracheostomies, gastrostomy tubes).\n\nYou draft personalized outreach emails to hospital referral sources (NICU social workers, discharge planners, pediatric case managers).\n\nRULES:\n- Clinical credibility first — frame Holigenix as a resource, never a sales pitch\n- Professional but warm — these are healthcare professionals, not buyers\n- Under 200 words per email\n- No emojis, no exclamation marks, no ALL CAPS\n- No generic \"just checking in\" — every email must provide value or a specific ask\n- Sign off as: Rodney Williams, Holigenix Healthcare LLC, admin@holigenixhealthcare.com\n- NEVER reference PHI, patient names, discharge lists, or private hospital systems\n- NEVER make promises about staffing capacity without verification\n- NEVER fabricate contact details, hospital data, or referral numbers\n- ALWAYS include a clear, single call-to-action\n- ALWAYS reference the contact's specific role and hospital when possible\n- Lead with what Holigenix can do for THEIR families/team\n\nABOUT HOLIGENIX:\n- Medicaid-approved pediatric home healthcare in Georgia\n- GAPP (Georgia Pediatric Program) approved\n- Specializes in technology-dependent children: vents, trachs, g-tubes, central lines\n- Known for fast intake and reliable staffing for the most complex cases\n- Accepts ALL Georgia Medicaid MCOs: Peach State, CareSource, Amerigroup, WellCare, Meridian\n- Service area: Metro Atlanta, Northeast GA, Middle GA, Augusta, expanding South GA\n\nMESSAGE TYPES:\n- introductory: First contact. Introduce Holigenix, ask for a brief call or in-service.\n- follow_up: 2nd/3rd attempt. Reference previous outreach, add a value prop, low pressure.\n- nurture: Contact has engaged. Share a relevant update, maintain relationship.\n- thank_you: Active referral partner. Express appreciation, share a win or update.\n- re_engagement: Was active, went quiet. Share something new, reopen the door.\n\nRespond with ONLY valid JSON (no markdown, no code blocks, no explanation).`;\n\nconst drafts = [];\n\nfor (const contact of batch) {\n  const userMsg = `Draft an email for this contact.\n\nCONTACT:\n- Name: ${contact.contact_name}\n- Title: ${contact.title || 'Healthcare Professional'}\n- Organization: ${contact.organization || 'Hospital'}\n- Department: ${contact.department || 'Not specified'}\n- Current Stage: ${contact.stage}\n- Relationship Score: ${contact.relationship_score}/100\n- Previous Emails Sent: ${contact.outreach_count}\n- Days Since Last Email: ${contact.days_since_last_email}\n- Hospital Has NICU: ${contact.hospital_nicu_flag ? 'Yes' : 'Unknown'}\n- Hospital Tier: ${contact.hospital_tier || 'Unknown'}\n\nMESSAGE TYPE: ${contact.message_type}\n\nReturn JSON:\n{\"subject\": \"...\", \"body\": \"...\", \"message_type\": \"${contact.message_type}\", \"cta\": \"the specific call to action\"}`;\n\n  try {\n    const resp = await this.helpers.httpRequest({\n      method: 'POST',\n      url: 'https://api.anthropic.com/v1/messages',\n      headers: {\n        'x-api-key': cfg.ANTHROPIC_API_KEY,\n        'anthropic-version': '2023-06-01',\n        'Content-Type': 'application/json'\n      },\n      body: {\n        model: 'claude-sonnet-4-20250514',\n        max_tokens: 1024,\n        system: SYSTEM_PROMPT,\n        messages: [{ role: 'user', content: userMsg }]\n      },\n      timeout: 30000\n    });\n\n    let text = resp.content.map(c => c.text || '').join('').trim();\n    // Strip markdown code fences if Claude wraps the JSON\n    text = text.replace(/^```json?\\n?/, '').replace(/\\n?```$/, '');\n    const draft = JSON.parse(text);\n\n    drafts.push({\n      contact_name: contact.contact_name,\n      contact_email: contact.email,\n      company_name: contact.organization,\n      department: contact.department,\n      subject: draft.subject,\n      body: draft.body,\n      message_type: draft.message_type || contact.message_type,\n      cta: draft.cta,\n      stage: contact.stage,\n      hospital_tier: contact.hospital_tier,\n      relationship_score: contact.relationship_score,\n      outreach_count: contact.outreach_count\n    });\n  } catch(e) {\n    drafts.push({\n      contact_name: contact.contact_name,\n      contact_email: contact.email,\n      company_name: contact.organization,\n      error: 'Draft failed: ' + e.message,\n      message_type: contact.message_type\n    });\n  }\n\n  // Rate limit between Claude API calls\n  await new Promise(r => setTimeout(r, 500));\n}\n\nreturn [{ json: {\n  drafts,\n  count: drafts.filter(d => !d.error).length,\n  errors: drafts.filter(d => d.error).length\n}}];"
+      },
+      "id": "draft-emails",
+      "name": "Outreach Agent — Draft Emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Send emails via Gmail API + log to Supabase outreach_emails\n// Respects DRY_RUN: true = draft+log only, false = send+log\n// ============================================================\nconst cfg = $('Config').first().json;\nconst data = $input.first().json;\nconst drafts = data.drafts.filter(d => !d.error);\nconst sbHeaders = {\n  'apikey': cfg.SUPABASE_SERVICE_KEY,\n  'Authorization': 'Bearer ' + cfg.SUPABASE_SERVICE_KEY,\n  'Content-Type': 'application/json',\n  'Prefer': 'return=minimal'\n};\n\nlet sent = 0;\nlet logged = 0;\nlet failed = 0;\nconst results = [];\n\nfor (const draft of drafts) {\n  let emailStatus = cfg.DRY_RUN ? 'draft' : 'pending';\n\n  // === SEND via Gmail API (only when DRY_RUN is false) ===\n  if (!cfg.DRY_RUN && cfg.GMAIL_ACCESS_TOKEN && cfg.GMAIL_ACCESS_TOKEN !== 'YOUR_GMAIL_OAUTH_ACCESS_TOKEN') {\n    try {\n      // Build RFC 2822 email message\n      const emailLines = [\n        'From: ' + cfg.SENDER_NAME + ' <' + cfg.SENDER_EMAIL + '>',\n        'To: ' + draft.contact_email,\n        'Subject: ' + draft.subject,\n        'Content-Type: text/plain; charset=utf-8',\n        '',\n        draft.body\n      ];\n      const rawEmail = Buffer.from(emailLines.join('\\r\\n'))\n        .toString('base64')\n        .replace(/\\+/g, '-')\n        .replace(/\\//g, '_')\n        .replace(/=+$/, '');\n\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',\n        headers: {\n          'Authorization': 'Bearer ' + cfg.GMAIL_ACCESS_TOKEN,\n          'Content-Type': 'application/json'\n        },\n        body: { raw: rawEmail },\n        timeout: 15000\n      });\n\n      emailStatus = 'sent';\n      sent++;\n    } catch(e) {\n      emailStatus = 'send_failed';\n      failed++;\n      results.push({ contact: draft.contact_name, send_error: e.message });\n    }\n  } else if (cfg.DRY_RUN) {\n    sent++; // Count drafts as successful in dry-run mode\n  } else {\n    emailStatus = 'send_failed';\n    failed++;\n    results.push({ contact: draft.contact_name, send_error: 'Gmail token not configured' });\n  }\n\n  // === LOG to Supabase outreach_emails table ===\n  try {\n    await this.helpers.httpRequest({\n      method: 'POST',\n      url: cfg.SUPABASE_URL + '/rest/v1/outreach_emails',\n      headers: sbHeaders,\n      body: {\n        contact_name: draft.contact_name,\n        contact_email: draft.contact_email,\n        company_name: draft.company_name,\n        subject: draft.subject,\n        body: draft.body,\n        status: emailStatus,\n        campaign_type: draft.message_type,\n        sent_at: emailStatus === 'sent' ? new Date().toISOString() : null,\n        metadata: {\n          message_type: draft.message_type,\n          cta: draft.cta,\n          hospital_tier: draft.hospital_tier,\n          relationship_score: draft.relationship_score,\n          generated_by: 'outreach_agent',\n          dry_run: cfg.DRY_RUN\n        }\n      }\n    });\n    logged++;\n  } catch(e) {\n    results.push({ contact: draft.contact_name, log_error: e.message });\n  }\n\n  // === UPDATE contact stage (only if actually sent) ===\n  if (emailStatus === 'sent' && !cfg.DRY_RUN) {\n    try {\n      const updates = { last_contacted_at: new Date().toISOString() };\n      // Move 'new' contacts to 'contacted' after first email\n      if (draft.stage === 'new') updates.stage = 'contacted';\n\n      await this.helpers.httpRequest({\n        method: 'PATCH',\n        url: cfg.SUPABASE_URL + '/rest/v1/crm_referral_sources?email=eq.' + encodeURIComponent(draft.contact_email),\n        headers: sbHeaders,\n        body: updates\n      });\n    } catch(e) {}\n  }\n\n  // Rate limit between sends\n  await new Promise(r => setTimeout(r, 200));\n}\n\nreturn [{ json: {\n  campaign: 'holigenix_outreach',\n  date: new Date().toISOString().split('T')[0],\n  dry_run: cfg.DRY_RUN,\n  drafts_total: drafts.length,\n  sent,\n  logged,\n  failed,\n  errors: results\n}}];"
+      },
+      "id": "send-and-log",
+      "name": "Send & Log Emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 100]
+    }
+  ],
+  "connections": {
+    "Weekday 9am ET": {
+      "main": [[{"node": "Config", "type": "main", "index": 0}]]
+    },
+    "Manual Trigger": {
+      "main": [[{"node": "Config", "type": "main", "index": 0}]]
+    },
+    "Config": {
+      "main": [[{"node": "Fetch Due Contacts", "type": "main", "index": 0}]]
+    },
+    "Fetch Due Contacts": {
+      "main": [[{"node": "Has Contacts Due?", "type": "main", "index": 0}]]
+    },
+    "Has Contacts Due?": {
+      "main": [[{"node": "Outreach Agent — Draft Emails", "type": "main", "index": 0}]]
+    },
+    "Outreach Agent — Draft Emails": {
+      "main": [[{"node": "Send & Log Emails", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/New_York"
+  }
+}

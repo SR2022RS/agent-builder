@@ -22,12 +22,12 @@
 
 ## Payer Mix
 - Georgia Medicaid (fee-for-service)
-- Managed Care Organizations (MCOs):
-  - Peach State Health Plan
-  - CareSource Georgia
-  - Amerigroup Georgia
-  - WellCare of Georgia
-  - Meridian Health Plan
+- Managed Care Organizations (CMOs) — **3 active GA Medicaid CMOs as of 2026**:
+  - **Peach State Health Plan** (Centene) — largest, Home Health Auth: 1-800-704-1483
+  - **CareSource Georgia** — growing, Provider Relations: GAProviderRelations@CareSource.com
+  - **Amerigroup Georgia** (Elevance/Anthem) — sole CMO for Georgia Families 360 (foster care)
+- NOTE: WellCare was absorbed into Peach State (Centene acquisition). Meridian does not operate in GA Medicaid.
+- New CMO contracts expected July 1, 2026 (UnitedHealthcare entering GA)
 
 ## Competitive Advantages
 1. **GAPP specialization** — deep expertise in Georgia's pediatric Medicaid program
@@ -63,7 +63,8 @@
 ## Agent Ecosystem
 | Agent | Platform | Purpose |
 |-------|----------|---------|
-| **Scout** | Telegram (OpenClaw/Railway) | Growth intelligence via mobile — you |
+| **Scout** | Telegram (OpenClaw/Railway) | Research & intelligence — CRM analysis, hospital targeting, pipeline strategy, GAPP expertise |
+| **Outreach Agent** | n8n + Gmail/Composio | Marketing & outreach — email campaigns, follow-up sequences, re-engagement, sends from admin@holigenixhealthcare.com |
 | **Aria** | Growth Engine web panel | In-app growth intelligence assistant |
 | **Ava** | CarePortal + Telegram | Clinical operations assistant |
 | **CareOps** | CarePortal Command Center | Agency diagnostics and compliance |
