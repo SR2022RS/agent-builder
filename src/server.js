@@ -205,46 +205,20 @@ async function startGateway() {
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
   // ─── GoHighLevel MCP Server ─────────────────────────────────────────
-  // Inject GHL MCP server via `openclaw mcp set` CLI (v2026.3.22+).
-  // This gives the agent direct access to contacts, conversations,
-  // calendars, pipelines, payments, social, and everything else in GHL.
-  const envGhlToken = (process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
-  const envGhlLocationId = process.env.GHL_LOCATION_ID?.trim();
-  if (envGhlToken && envGhlLocationId) {
-    const ghlMcpConfig = {
-      url: "https://services.leadconnectorhq.com/mcp/",
-      transport: "streamable-http",
-      headers: {
-        Authorization: `Bearer ${envGhlToken}`,
-        Version: "2021-07-28",
-      },
-      metadata: {
-        locationId: envGhlLocationId,
-        label: "GoHighLevel CRM",
-      },
-    };
-
-    const setGhl = await runCmd(
-      OPENCLAW_NODE,
-      clawArgs(["mcp", "set", "gohighlevel", JSON.stringify(ghlMcpConfig)]),
-    );
-
-    if (setGhl.code === 0) {
-      console.log(`[gateway] ✓ GHL MCP server configured (location: ${envGhlLocationId})`);
-    } else {
-      console.warn(`[gateway] ⚠ openclaw mcp set failed (code ${setGhl.code}): ${setGhl.output}`);
-      // Fallback: write directly to mcp.servers in config
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-        config.mcp = config.mcp || {};
-        config.mcp.servers = config.mcp.servers || {};
-        config.mcp.servers.gohighlevel = ghlMcpConfig;
-        fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
-        console.log(`[gateway] ✓ GHL MCP server configured via direct config write`);
-      } catch (err) {
-        console.error(`[gateway] ✗ Failed to configure GHL MCP: ${err.message}`);
-      }
+  // Remove GHL MCP from config for now — the gateway hangs trying to
+  // connect to the streamable-http endpoint on startup, causing 503.
+  // GHL MCP will be re-added once we confirm the gateway starts cleanly.
+  // TODO: Re-enable once gateway startup is stable with MCP.
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    if (config.mcp?.servers?.gohighlevel) {
+      console.log(`[gateway] Temporarily removing GHL MCP to unblock gateway startup`);
+      delete config.mcp.servers.gohighlevel;
+      if (Object.keys(config.mcp.servers).length === 0) delete config.mcp;
+      fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
     }
+  } catch (err) {
+    console.warn(`[gateway] MCP cleanup skipped: ${err.message}`);
   }
 
   // ─── Fix Telegram channel policies ──────────────────────────────────
@@ -781,56 +755,11 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
       const ghlLocationId = (payload.ghlLocationId || process.env.GHL_LOCATION_ID || "").trim();
 
       if (ghlToken && ghlLocationId) {
-        console.log(`[ghl] Configuring GoHighLevel MCP server for location ${ghlLocationId.slice(0, 8)}...`);
-
-        const ghlMcpConfig = {
-          url: "https://services.leadconnectorhq.com/mcp/",
-          transport: "streamable-http",
-          headers: {
-            Authorization: `Bearer ${ghlToken}`,
-            Version: "2021-07-28",
-          },
-          metadata: {
-            locationId: ghlLocationId,
-            label: "GoHighLevel CRM",
-          },
-        };
-
-        const setGhl = await runCmd(
-          OPENCLAW_NODE,
-          clawArgs(["mcp", "set", "gohighlevel", JSON.stringify(ghlMcpConfig)]),
-        );
-
-        if (setGhl.code === 0) {
-          console.log(`[ghl] ✓ GoHighLevel MCP server configured successfully`);
-          extra += `\n[ghl] ✓ GoHighLevel MCP server connected (location: ${ghlLocationId})\n`;
-        } else {
-          console.warn(`[ghl] ⚠ openclaw mcp set failed (code ${setGhl.code}): ${setGhl.output}`);
-          // Fallback: write directly to mcp.servers in config
-          try {
-            const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
-            config.mcp = config.mcp || {};
-            config.mcp.servers = config.mcp.servers || {};
-            config.mcp.servers.gohighlevel = ghlMcpConfig;
-            fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
-            console.log(`[ghl] ✓ GoHighLevel MCP server configured via direct write`);
-            extra += `[ghl] ✓ GoHighLevel MCP server connected via direct write\n`;
-          } catch (err) {
-            console.error(`[ghl] ✗ Failed to configure GHL MCP: ${err}`);
-            extra += `[ghl] ✗ Failed to configure GoHighLevel: ${String(err)}\n`;
-          }
-        }
-
-        // Verify
-        const verifyGhl = await runCmd(
-          OPENCLAW_NODE,
-          clawArgs(["mcp", "show", "gohighlevel"]),
-        );
-        if (verifyGhl.code === 0 && verifyGhl.output?.includes("leadconnectorhq")) {
-          console.log(`[ghl] ✓ Verification passed`);
-        } else {
-          console.warn(`[ghl] ⚠ Verification: ${verifyGhl.output}`);
-        }
+        // GHL MCP temporarily disabled — streamable-http transport causes
+        // gateway to hang on startup. Credentials available via env vars.
+        console.log(`[ghl] GoHighLevel credentials detected (location: ${ghlLocationId.slice(0, 8)}...)`);
+        extra += `\n[ghl] ✓ GoHighLevel credentials available via env vars (location: ${ghlLocationId})\n`;
+        extra += `[ghl] ℹ MCP injection paused — streamable-http hangs gateway; investigating\n`;
       } else if (ghlToken || ghlLocationId) {
         extra += `\n[ghl] ⚠ Skipped — need both Private Token AND Location ID to connect GoHighLevel\n`;
       }
