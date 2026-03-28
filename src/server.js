@@ -204,21 +204,47 @@ async function startGateway() {
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
-  // ─── GoHighLevel MCP Server ─────────────────────────────────────────
-  // Remove GHL MCP from config for now — the gateway hangs trying to
-  // connect to the streamable-http endpoint on startup, causing 503.
-  // GHL MCP will be re-added once we confirm the gateway starts cleanly.
-  // TODO: Re-enable once gateway startup is stable with MCP.
+  // ─── GoHighLevel Plugin Registration ────────────────────────────────
+  // Register the GHL plugin (REST API based, no MCP transport needed).
+  // The plugin reads GHL_API_KEY and GHL_LOCATION_ID from env vars.
   try {
     const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    let dirty = false;
+
+    // Remove old MCP-based GHL config (caused gateway hangs)
     if (config.mcp?.servers?.gohighlevel) {
-      console.log(`[gateway] Temporarily removing GHL MCP to unblock gateway startup`);
       delete config.mcp.servers.gohighlevel;
       if (Object.keys(config.mcp.servers).length === 0) delete config.mcp;
+      dirty = true;
+    }
+
+    // Register the gohighlevel plugin
+    config.plugins = config.plugins || {};
+    config.plugins.allow = config.plugins.allow || [];
+    if (!config.plugins.allow.includes("gohighlevel")) {
+      config.plugins.allow.push("gohighlevel");
+      dirty = true;
+    }
+    config.plugins.entries = config.plugins.entries || {};
+    if (!config.plugins.entries.gohighlevel) {
+      config.plugins.entries.gohighlevel = { enabled: true };
+      dirty = true;
+    }
+
+    // Also allow the plugin in tools
+    config.tools = config.tools || {};
+    config.tools.alsoAllow = config.tools.alsoAllow || [];
+    if (!config.tools.alsoAllow.includes("gohighlevel")) {
+      config.tools.alsoAllow.push("gohighlevel");
+      dirty = true;
+    }
+
+    if (dirty) {
       fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+      console.log(`[gateway] ✓ GoHighLevel plugin registered in config`);
     }
   } catch (err) {
-    console.warn(`[gateway] MCP cleanup skipped: ${err.message}`);
+    console.warn(`[gateway] GHL plugin registration skipped: ${err.message}`);
   }
 
   // ─── Fix Telegram channel policies ──────────────────────────────────
@@ -755,11 +781,9 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
       const ghlLocationId = (payload.ghlLocationId || process.env.GHL_LOCATION_ID || "").trim();
 
       if (ghlToken && ghlLocationId) {
-        // GHL MCP temporarily disabled — streamable-http transport causes
-        // gateway to hang on startup. Credentials available via env vars.
         console.log(`[ghl] GoHighLevel credentials detected (location: ${ghlLocationId.slice(0, 8)}...)`);
-        extra += `\n[ghl] ✓ GoHighLevel credentials available via env vars (location: ${ghlLocationId})\n`;
-        extra += `[ghl] ℹ MCP injection paused — streamable-http hangs gateway; investigating\n`;
+        extra += `\n[ghl] ✓ GoHighLevel connected via plugin (location: ${ghlLocationId})\n`;
+        extra += `[ghl] ℹ Using REST API plugin (not MCP) for direct GHL access\n`;
       } else if (ghlToken || ghlLocationId) {
         extra += `\n[ghl] ⚠ Skipped — need both Private Token AND Location ID to connect GoHighLevel\n`;
       }

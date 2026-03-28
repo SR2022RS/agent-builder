@@ -38,6 +38,18 @@ if [ -f "$CONFIG_FILE" ]; then
   fi
 fi
 
+# Install GoHighLevel plugin into persistent extensions directory
+GHL_EXT_SRC="./extensions/gohighlevel"
+GHL_EXT_DST="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/extensions/gohighlevel"
+if [ -d "$GHL_EXT_SRC" ]; then
+  echo "[entrypoint] Installing GoHighLevel plugin..."
+  mkdir -p "$GHL_EXT_DST"
+  cp -f "$GHL_EXT_SRC/index.ts" "$GHL_EXT_DST/"
+  cp -f "$GHL_EXT_SRC/package.json" "$GHL_EXT_DST/"
+  cp -f "$GHL_EXT_SRC/openclaw.plugin.json" "$GHL_EXT_DST/"
+  echo "[entrypoint] ✓ GoHighLevel plugin installed"
+fi
+
 # Start the Node.js server
 node src/server.js &
 SERVER_PID=$!

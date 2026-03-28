@@ -1,0 +1,23 @@
+{
+  "id": "gohighlevel",
+  "name": "GoHighLevel CRM",
+  "description": "Direct access to GoHighLevel CRM — contacts, conversations, calendars, pipelines, tasks, and notes via REST API.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "description": "Enable or disable the GoHighLevel integration"
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "GHL API key (Bearer token)"
+      },
+      "locationId": {
+        "type": "string",
+        "description": "GHL Location/Sub-Account ID"
+      }
+    }
+  }
+}

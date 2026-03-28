@@ -87,6 +87,7 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 COPY src ./src
 COPY scripts ./scripts
 RUN chmod +x ./scripts/install-skills.sh
+COPY extensions ./extensions
 
 # Entrypoint: install skills on first boot, then start the server
 COPY entrypoint.sh ./entrypoint.sh
