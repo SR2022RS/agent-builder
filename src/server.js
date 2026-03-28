@@ -967,6 +967,43 @@ app.post("/setup/api/pairing/approve", requireSetupAuth, async (req, res) => {
     .json({ ok: r.code === 0, output: r.output });
 });
 
+// Emergency config patch — fixes config file directly without starting gateway
+app.post("/setup/api/patch-config", requireSetupAuth, async (req, res) => {
+  try {
+    const cfgPath = configPath();
+    if (!fs.existsSync(cfgPath)) {
+      return res.status(404).json({ ok: false, error: "Config file not found" });
+    }
+    const config = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    const patches = req.body || {};
+
+    // Apply patches using dot notation
+    for (const [key, value] of Object.entries(patches)) {
+      const parts = key.split(".");
+      let obj = config;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!obj[parts[i]]) obj[parts[i]] = {};
+        obj = obj[parts[i]];
+      }
+      obj[parts[parts.length - 1]] = value;
+    }
+
+    fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
+    console.log(`[patch-config] Patched config keys: ${Object.keys(patches).join(", ")}`);
+
+    // Kill existing gateway so it can be restarted with new config
+    if (gatewayProc) {
+      gatewayProc.kill("SIGTERM");
+      gatewayProc = null;
+    }
+
+    res.json({ ok: true, patched: Object.keys(patches) });
+  } catch (err) {
+    console.error("[patch-config] error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post("/setup/api/reset", requireSetupAuth, async (_req, res) => {
   // Minimal reset: delete the config file so /setup can rerun.
   // Keep credentials/sessions/workspace by default.
