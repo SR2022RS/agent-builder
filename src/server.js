@@ -994,7 +994,13 @@ app.post("/setup/api/pairing/approve", requireSetupAuth, async (req, res) => {
 });
 
 // Emergency config patch — fixes config file directly without starting gateway
-app.post("/setup/api/patch-config", requireSetupAuth, async (req, res) => {
+// Uses inline auth (no requireSetupAuth) to avoid any async gateway dependency
+app.post("/setup/api/patch-config", (req, res) => {
+  // Inline basic auth
+  const a = req.headers.authorization;
+  if (!SETUP_PASSWORD || !a) return res.status(401).json({ error: "Unauthorized" });
+  const p = Buffer.from(a.replace(/^Basic\s+/i, ""), "base64").toString().split(":").pop();
+  if (p !== SETUP_PASSWORD) return res.status(401).json({ error: "Invalid password" });
   try {
     const cfgPath = configPath();
     if (!fs.existsSync(cfgPath)) {
@@ -1016,13 +1022,6 @@ app.post("/setup/api/patch-config", requireSetupAuth, async (req, res) => {
 
     fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
     console.log(`[patch-config] Patched config keys: ${Object.keys(patches).join(", ")}`);
-
-    // Kill existing gateway so it can be restarted with new config
-    if (gatewayProc) {
-      gatewayProc.kill("SIGTERM");
-      gatewayProc = null;
-    }
-
     res.json({ ok: true, patched: Object.keys(patches) });
   } catch (err) {
     console.error("[patch-config] error:", err);
