@@ -247,6 +247,37 @@ async function startGateway() {
     }
   }
 
+  // ─── Fix Telegram allowlist policies ─────────────────────────────────
+  // doctor --fix can leave groupPolicy as "allowlist" with empty allowFrom,
+  // which silently drops ALL messages. Set policies to "open" so the bot
+  // actually responds to users.
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    const telegramAccounts = config?.channels?.telegram?.accounts;
+    if (telegramAccounts) {
+      let dirty = false;
+      for (const [name, acct] of Object.entries(telegramAccounts)) {
+        if (acct.groupPolicy === "allowlist" && (!acct.groupAllowFrom?.length && !acct.allowFrom?.length)) {
+          console.log(`[gateway] Fixing Telegram account "${name}" groupPolicy: allowlist → open`);
+          acct.groupPolicy = "open";
+          dirty = true;
+        }
+        // Also ensure DM policy is open
+        if (acct.dmPolicy === "allowlist" && (!acct.dmAllowFrom?.length && !acct.allowFrom?.length)) {
+          console.log(`[gateway] Fixing Telegram account "${name}" dmPolicy: allowlist → open`);
+          acct.dmPolicy = "open";
+          dirty = true;
+        }
+      }
+      if (dirty) {
+        fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+        console.log(`[gateway] ✓ Telegram policies fixed`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[gateway] Telegram policy check skipped: ${err.message}`);
+  }
+
   const args = [
     "gateway",
     "run",
