@@ -1265,20 +1265,22 @@ app.post("/task", requireBearerAuth, async (req, res) => {
 
   try {
     await ensureGatewayRunning();
-    const response = await fetch(`${GATEWAY_TARGET}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
-      },
-      body: JSON.stringify({ message }),
-      signal: AbortSignal.timeout(60000),
-    });
-    const data = await response.json();
-    res.json(data);
+    // Use OpenClaw CLI to send the message — gateway uses WebSocket, not REST
+    const result = childProcess.execFileSync(
+      OPENCLAW_NODE,
+      clawArgs(["send", "--message", message, "--format", "json"]),
+      { encoding: "utf-8", timeout: 120_000 }
+    );
+    try {
+      res.json(JSON.parse(result));
+    } catch {
+      res.json({ response: result.trim() });
+    }
   } catch (err) {
     console.error("[task]", err.message);
-    res.status(502).json({ error: "Gateway unavailable", detail: err.message });
+    // Fallback: return the error with whatever output was captured
+    const output = err.stdout || err.stderr || err.message;
+    res.status(502).json({ error: "Task execution failed", detail: output.slice(0, 500) });
   }
 });
 
