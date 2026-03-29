@@ -1136,16 +1136,19 @@ const SUB_AGENTS = {
   nova: {
     name: "NOVA",
     endpoint: process.env.NOVA_ENDPOINT || "",
+    token: process.env.NOVA_TOKEN || "",
     routes: ["pipeline", "stalled", "usps", "tracking", "daily summary", "heartbeat"],
   },
   bridge: {
     name: "BRIDGE",
     endpoint: process.env.BRIDGE_ENDPOINT || "",
+    token: process.env.BRIDGE_TOKEN || "",
     routes: ["workflow", "n8n", "platform", "wix", "ghl", "document"],
   },
   echo: {
     name: "ECHO",
     endpoint: process.env.ECHO_ENDPOINT || "",
+    token: process.env.ECHO_TOKEN || "",
     routes: ["reminder", "communication", "sms", "email", "outbound", "sequence"],
   },
 };
@@ -1184,10 +1187,13 @@ app.post("/api/route/:agent", async (req, res) => {
     return res.status(503).json({ error: `${agent.name} endpoint not configured`, hint: `Set ${agentId.toUpperCase()}_ENDPOINT` });
   }
 
+  const headers = { "Content-Type": "application/json" };
+  if (agent.token) headers["Authorization"] = `Bearer ${agent.token}`;
+
   try {
     const response = await fetch(`${agent.endpoint}/task`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(req.body),
       signal: AbortSignal.timeout(30000),
     });
@@ -1222,10 +1228,13 @@ app.post("/api/route", async (req, res) => {
     return res.json({ routed: false, agent: "VANCE", reason: "No sub-agent match — handled directly" });
   }
 
+  const autoHeaders = { "Content-Type": "application/json" };
+  if (matched.token) autoHeaders["Authorization"] = `Bearer ${matched.token}`;
+
   try {
     const response = await fetch(`${matched.endpoint}/task`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: autoHeaders,
       body: JSON.stringify(req.body),
       signal: AbortSignal.timeout(30000),
     });
