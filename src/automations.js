@@ -10,7 +10,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const VANCE_URL = process.env.VANCE_ENDPOINT || "";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID || "";
-const SHIPENGINE_API_KEY = process.env.SHIPENGINE_API_KEY || "";
+const SHIPENGINE_API_KEY = process.env.SHIPENGINE_API_KEY || process.env.SHIPENGINE_API || "";
 const DVTOL_SHIP_FROM = {
   name: process.env.DVTOL_SHIP_FROM_NAME || "Dr. V's Tree of Life",
   address_line1: process.env.DVTOL_SHIP_FROM_ADDRESS || "",
