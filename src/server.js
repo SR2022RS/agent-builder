@@ -1245,6 +1245,51 @@ app.post("/api/route", async (req, res) => {
   }
 });
 
+// ─── Task Endpoint (Sub-Agent API) ────────────────────────────────────────
+// Receives delegation packets from VANCE. Forwards to OpenClaw gateway as a
+// chat message. Auth: Bearer token must match SETUP_PASSWORD.
+
+app.post("/task", requireBearerAuth, async (req, res) => {
+  const { task, scope, inputs, constraints, outputFormat, successCriteria } = req.body;
+
+  const message = [
+    `Task: ${task}`,
+    scope ? `Scope: ${scope}` : "",
+    inputs ? `Inputs: ${JSON.stringify(inputs)}` : "",
+    constraints ? `Constraints: ${constraints}` : "",
+    outputFormat ? `Output format: ${outputFormat}` : "",
+    successCriteria ? `Success criteria: ${successCriteria}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    await ensureGatewayRunning();
+    const response = await fetch(`${GATEWAY_TARGET}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
+      },
+      body: JSON.stringify({ message }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("[task]", err.message);
+    res.status(502).json({ error: "Gateway unavailable", detail: err.message });
+  }
+});
+
+app.get("/heartbeat", (_req, res) => {
+  res.json({
+    status: "HEARTBEAT_OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // ─── Deploy File API ──────────────────────────────────────────────────────
 // Accepts hex-encoded file content and writes it to the container filesystem.
 // Used by the provisioning engine to deploy workspace files and skills.
