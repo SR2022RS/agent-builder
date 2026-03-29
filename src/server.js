@@ -155,6 +155,30 @@ async function startGateway() {
       fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
       console.log(`[gateway] ✓ Legacy mcpServers migrated`);
     }
+
+    // Fix Telegram allowFrom — required when dmPolicy is "open"
+    let cfgChanged = false;
+    if (rawCfg.channels?.telegram) {
+      const tg = rawCfg.channels.telegram;
+      if (tg.dmPolicy === "open" && (!tg.allowFrom || !tg.allowFrom.includes("*"))) {
+        tg.allowFrom = ["*"];
+        cfgChanged = true;
+        console.log(`[gateway] ✓ Fixed telegram.allowFrom → ["*"]`);
+      }
+      if (tg.accounts) {
+        for (const [name, acct] of Object.entries(tg.accounts)) {
+          if (acct.dmPolicy === "open" && (!acct.allowFrom || !acct.allowFrom.includes("*"))) {
+            acct.allowFrom = ["*"];
+            cfgChanged = true;
+            console.log(`[gateway] ✓ Fixed telegram.accounts.${name}.allowFrom → ["*"]`);
+          }
+        }
+      }
+      if (cfgChanged) {
+        fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
+        console.log(`[gateway] ✓ Telegram config patched`);
+      }
+    }
   } catch (err) {
     console.warn(`[gateway] Config migration check skipped: ${err.message}`);
   }
