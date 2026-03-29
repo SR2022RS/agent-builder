@@ -426,6 +426,7 @@ async function createShippingLabel(memberId) {
         ship_from: DVTOL_SHIP_FROM,
         packages: [{ weight: { value: 4, unit: "ounce" } }],
       },
+      carrier_id: process.env.SHIPENGINE_CARRIER_ID || "se-5222700",
       service_code: "usps_first_class_mail",
       label_format: "pdf",
       label_download_type: "url",
