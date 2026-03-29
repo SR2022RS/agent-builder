@@ -288,6 +288,12 @@ async function startGateway() {
         tg.dmPolicy = "open";
         dirty = true;
       }
+      // Ensure allowFrom includes "*" when dmPolicy is "open"
+      if (tg.dmPolicy === "open" && (!tg.allowFrom || !tg.allowFrom.includes("*"))) {
+        console.log(`[gateway] Fixing channels.telegram.allowFrom: adding "*" for dmPolicy=open`);
+        tg.allowFrom = ["*"];
+        dirty = true;
+      }
       if (tg.groupPolicy && tg.groupPolicy !== "open") {
         console.log(`[gateway] Fixing channels.telegram.groupPolicy: ${tg.groupPolicy} → open`);
         tg.groupPolicy = "open";
@@ -299,6 +305,12 @@ async function startGateway() {
           if (acct.dmPolicy && acct.dmPolicy !== "open") {
             console.log(`[gateway] Fixing Telegram "${name}" dmPolicy: ${acct.dmPolicy} → open`);
             acct.dmPolicy = "open";
+            dirty = true;
+          }
+          // Ensure per-account allowFrom includes "*" when dmPolicy is "open"
+          if ((!acct.dmPolicy || acct.dmPolicy === "open") && (!acct.allowFrom || !acct.allowFrom.includes("*"))) {
+            console.log(`[gateway] Fixing Telegram "${name}" allowFrom: adding "*"`);
+            acct.allowFrom = ["*"];
             dirty = true;
           }
           if (acct.groupPolicy && acct.groupPolicy !== "open") {
