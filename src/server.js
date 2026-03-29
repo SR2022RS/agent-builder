@@ -1263,24 +1263,48 @@ app.post("/task", requireBearerAuth, async (req, res) => {
     .filter(Boolean)
     .join("\n");
 
+  // Load workspace files as system context
+  const wsDir = WORKSPACE_DIR;
+  let systemPrompt = "";
+  for (const f of ["system_prompt.md", "SOUL.md", "MEMORY.md", "IDENTITY.md", "TOOLS.md"]) {
+    const fp = path.join(wsDir, f);
+    if (fs.existsSync(fp)) {
+      systemPrompt += fs.readFileSync(fp, "utf-8") + "\n\n";
+    }
+  }
+
+  // Call Anthropic API directly with workspace context
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: "ANTHROPIC_API_KEY not set" });
+  }
+
   try {
-    await ensureGatewayRunning();
-    // Use OpenClaw CLI to send the message — gateway uses WebSocket, not REST
-    const result = childProcess.execFileSync(
-      OPENCLAW_NODE,
-      clawArgs(["send", "--message", message, "--format", "json"]),
-      { encoding: "utf-8", timeout: 120_000 }
-    );
-    try {
-      res.json(JSON.parse(result));
-    } catch {
-      res.json({ response: result.trim() });
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt.trim(),
+        messages: [{ role: "user", content: message }],
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+
+    const data = await response.json();
+    if (data.content && data.content[0]) {
+      res.json({ response: data.content[0].text, model: data.model, usage: data.usage });
+    } else {
+      res.json(data);
     }
   } catch (err) {
     console.error("[task]", err.message);
-    // Fallback: return the error with whatever output was captured
-    const output = err.stdout || err.stderr || err.message;
-    res.status(502).json({ error: "Task execution failed", detail: output.slice(0, 500) });
+    res.status(502).json({ error: "Task execution failed", detail: err.message });
   }
 });
 
