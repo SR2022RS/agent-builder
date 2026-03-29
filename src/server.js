@@ -1115,6 +1115,127 @@ app.get("/setup/export", requireSetupAuth, async (_req, res) => {
   stream.pipe(res);
 });
 
+// ─── Health Endpoint ──────────────────────────────────────────────────────
+// Public health check for Railway and sub-agent monitoring.
+
+app.get("/health", (_req, res) => {
+  res.json({
+    ok: true,
+    status: "live",
+    configured: isConfigured(),
+    uptime: process.uptime(),
+    routingMode: process.env.ROUTING_MODE || "phase1",
+  });
+});
+
+// ─── Phase 3 Sub-Agent Routing (DVTOL) ───────────────────────────────────
+// Routes delegation packets from VANCE to NOVA/BRIDGE/ECHO sub-agents.
+// Controlled by ROUTING_MODE env var: "phase1" = handle all, "phase3" = route.
+
+const SUB_AGENTS = {
+  nova: {
+    name: "NOVA",
+    endpoint: process.env.NOVA_ENDPOINT || "",
+    routes: ["pipeline", "stalled", "usps", "tracking", "daily summary", "heartbeat"],
+  },
+  bridge: {
+    name: "BRIDGE",
+    endpoint: process.env.BRIDGE_ENDPOINT || "",
+    routes: ["workflow", "n8n", "platform", "wix", "ghl", "document"],
+  },
+  echo: {
+    name: "ECHO",
+    endpoint: process.env.ECHO_ENDPOINT || "",
+    routes: ["reminder", "communication", "sms", "email", "outbound", "sequence"],
+  },
+};
+
+app.get("/api/agents", async (_req, res) => {
+  const status = { mode: process.env.ROUTING_MODE || "phase1", agents: {} };
+  for (const [id, agent] of Object.entries(SUB_AGENTS)) {
+    if (!agent.endpoint) {
+      status.agents[id] = { name: agent.name, status: "not_configured" };
+      continue;
+    }
+    try {
+      const response = await fetch(`${agent.endpoint}/health`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      const data = await response.json();
+      status.agents[id] = { name: agent.name, status: "online", ...data };
+    } catch (err) {
+      status.agents[id] = { name: agent.name, status: "unreachable", error: err.message };
+    }
+  }
+  res.json(status);
+});
+
+app.post("/api/route/:agent", async (req, res) => {
+  const agentId = req.params.agent.toLowerCase();
+  const agent = SUB_AGENTS[agentId];
+
+  if (!agent) {
+    return res.status(404).json({ error: `Unknown agent: ${agentId}`, available: Object.keys(SUB_AGENTS) });
+  }
+  if ((process.env.ROUTING_MODE || "phase1") !== "phase3") {
+    return res.status(403).json({ error: "Routing disabled in Phase 1 mode", hint: "Set ROUTING_MODE=phase3" });
+  }
+  if (!agent.endpoint) {
+    return res.status(503).json({ error: `${agent.name} endpoint not configured`, hint: `Set ${agentId.toUpperCase()}_ENDPOINT` });
+  }
+
+  try {
+    const response = await fetch(`${agent.endpoint}/task`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await response.json();
+    res.json({ agent: agent.name, routed: true, response: data });
+  } catch (err) {
+    console.error(`[route] ${agent.name} error:`, err.message);
+    res.status(502).json({ error: `${agent.name} unreachable`, detail: err.message });
+  }
+});
+
+app.post("/api/route", async (req, res) => {
+  if ((process.env.ROUTING_MODE || "phase1") !== "phase3") {
+    return res.status(403).json({ error: "Routing disabled in Phase 1 mode" });
+  }
+  const { task } = req.body;
+  if (!task) return res.status(400).json({ error: "task field is required" });
+
+  const taskLower = task.toLowerCase();
+  let matched = null;
+  let matchedId = null;
+  for (const [id, agent] of Object.entries(SUB_AGENTS)) {
+    if (!agent.endpoint) continue;
+    if (agent.routes.some((kw) => taskLower.includes(kw))) {
+      matched = agent;
+      matchedId = id;
+      break;
+    }
+  }
+
+  if (!matched) {
+    return res.json({ routed: false, agent: "VANCE", reason: "No sub-agent match — handled directly" });
+  }
+
+  try {
+    const response = await fetch(`${matched.endpoint}/task`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await response.json();
+    res.json({ agent: matched.name, routed: true, matchedOn: matchedId, response: data });
+  } catch (err) {
+    res.json({ routed: false, agent: "VANCE", reason: `${matched.name} unreachable`, error: err.message });
+  }
+});
+
 // ─── Deploy File API ──────────────────────────────────────────────────────
 // Accepts hex-encoded file content and writes it to the container filesystem.
 // Used by the provisioning engine to deploy workspace files and skills.
