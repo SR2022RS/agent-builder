@@ -7,9 +7,9 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const VANCE_URL = process.env.VANCE_ENDPOINT || process.env.NOVA_ENDPOINT ?
-  (process.env.VANCE_ENDPOINT || "https://dvtol-system-production.up.railway.app") : "";
-const VANCE_TOKEN = process.env.SETUP_PASSWORD || "";
+const VANCE_URL = process.env.VANCE_ENDPOINT || "";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const AUTHORIZED_TELEGRAM_IDS = (process.env.AUTHORIZED_TELEGRAM_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
 
 // Only initialize if Supabase is configured
 const supabase = SUPABASE_URL && SUPABASE_KEY
@@ -44,27 +44,29 @@ function daysBetween(date1, date2) {
   return Math.floor((date2 - date1) / (1000 * 60 * 60 * 24));
 }
 
-async function notifyVance(message) {
-  if (!VANCE_URL) {
-    console.log("[automations] VANCE_URL not set, skipping notification");
+async function sendTelegram(text) {
+  if (!TELEGRAM_BOT_TOKEN || AUTHORIZED_TELEGRAM_IDS.length === 0) {
+    console.log("[automations] Telegram not configured, skipping notification");
     return;
   }
-  try {
-    const res = await fetch(`${VANCE_URL}/task`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${VANCE_TOKEN}`,
-      },
-      body: JSON.stringify({ task: message }),
-      signal: AbortSignal.timeout(120_000),
-    });
-    const data = await res.json();
-    console.log(`[automations] VANCE notified: ${message.slice(0, 80)}...`);
-    return data;
-  } catch (err) {
-    console.error(`[automations] VANCE notification failed: ${err.message}`);
+  for (const chatId of AUTHORIZED_TELEGRAM_IDS) {
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (err) {
+      console.error(`[automations] Telegram send failed for ${chatId}: ${err.message}`);
+    }
   }
+  console.log(`[automations] Telegram sent to ${AUTHORIZED_TELEGRAM_IDS.length} user(s): ${text.slice(0, 80)}...`);
+}
+
+async function notifyVance(message) {
+  // Send directly to Telegram (bypasses /task endpoint which can't send Telegram messages)
+  await sendTelegram(message);
 }
 
 async function getActiveMembers() {
