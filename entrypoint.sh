@@ -1,24 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
-# HighLevel Agent Builder — Entrypoint
-# =============================================================================
-# 1. Start the server in the background
-# 2. Run skill installer (non-blocking, first boot only)
-# 3. Wait for the server process
+# DVTOL Agent — Entrypoint (forked from openclaw-railway-template)
 # =============================================================================
 
 set -euo pipefail
 
-echo "[entrypoint] Starting HighLevel Agent Builder..."
+echo "[entrypoint] Starting DVTOL Agent..."
 
-# Auto-heal config before startup: remove unknown keys, fix channel structure.
-# This is idempotent — safe to run every boot.
+# Auto-heal config before startup
 CONFIG_FILE="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/openclaw.json"
 if [ -f "$CONFIG_FILE" ]; then
-  echo "[entrypoint] Running openclaw doctor --fix to validate config..."
-  openclaw doctor --fix 2>&1 || echo "[entrypoint] doctor --fix exited non-zero (may be ok if config was already clean)"
+  echo "[entrypoint] Running openclaw doctor --fix..."
+  openclaw doctor --fix 2>&1 || echo "[entrypoint] doctor --fix exited non-zero (may be ok)"
 
-  # Migrate legacy mcpServers (camelCase) → mcp.servers (v2026.3.22+ format)
+  # Migrate legacy mcpServers -> mcp.servers
   if command -v node > /dev/null 2>&1; then
     node -e "
       const fs = require('fs');
@@ -26,42 +21,39 @@ if [ -f "$CONFIG_FILE" ]; then
       try {
         const c = JSON.parse(fs.readFileSync(p, 'utf8'));
         if (c.mcpServers) {
-          console.log('[entrypoint] Migrating legacy mcpServers → mcp.servers');
+          console.log('[entrypoint] Migrating legacy mcpServers');
           c.mcp = c.mcp || {};
           c.mcp.servers = { ...(c.mcp.servers || {}), ...c.mcpServers };
           delete c.mcpServers;
           fs.writeFileSync(p, JSON.stringify(c, null, 2));
-          console.log('[entrypoint] ✓ Migration complete');
         }
       } catch(e) { console.warn('[entrypoint] Config migration skipped:', e.message); }
     "
   fi
+
+  # Remove GHL plugin from persistent extensions (not used by DVTOL)
+  GHL_EXT="${OPENCLAW_STATE_DIR:-\$HOME/.openclaw}/extensions/gohighlevel"
+  if [ -d "$GHL_EXT" ]; then
+    echo "[entrypoint] Removing unused GoHighLevel plugin..."
+    rm -rf "$GHL_EXT"
+  fi
 fi
 
-# Install GoHighLevel plugin into persistent extensions directory
-GHL_EXT_SRC="./extensions/gohighlevel"
-GHL_EXT_DST="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/extensions/gohighlevel"
-if [ -d "$GHL_EXT_SRC" ]; then
-  echo "[entrypoint] Installing GoHighLevel plugin..."
-  mkdir -p "$GHL_EXT_DST"
-  cp -f "$GHL_EXT_SRC/index.ts" "$GHL_EXT_DST/"
-  cp -f "$GHL_EXT_SRC/package.json" "$GHL_EXT_DST/"
-  cp -f "$GHL_EXT_SRC/openclaw.plugin.json" "$GHL_EXT_DST/"
-  echo "[entrypoint] ✓ GoHighLevel plugin installed"
+# Copy DVTOL workspace files from /data/workspace if they exist
+WORKSPACE_SRC="/data/workspace"
+WORKSPACE_DST="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/workspace"
+if [ -d "$WORKSPACE_SRC" ] && ls "$WORKSPACE_SRC"/*.md > /dev/null 2>&1; then
+  echo "[entrypoint] Loading DVTOL workspace files..."
+  mkdir -p "$WORKSPACE_DST"
+  cp -f "$WORKSPACE_SRC"/*.md "$WORKSPACE_DST/" 2>/dev/null || true
+  echo "[entrypoint] Workspace files loaded"
 fi
 
-# Start the Node.js server
+# Start the server (handles gateway lifecycle)
 node src/server.js &
 SERVER_PID=$!
-
-# Give the server a moment to initialize
 sleep 5
 
-# Run skill installer in the background (won't block startup)
-if [ -f ./scripts/install-skills.sh ]; then
-  echo "[entrypoint] Launching skill installer in background..."
-  bash ./scripts/install-skills.sh &
-fi
+# No skill installer — DVTOL agents don't need community skills
 
-# Wait for the server process (keeps container alive)
 wait $SERVER_PID
