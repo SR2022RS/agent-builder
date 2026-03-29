@@ -9,6 +9,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const VANCE_URL = process.env.VANCE_ENDPOINT || "";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID || "";
 const AUTHORIZED_TELEGRAM_IDS = (process.env.AUTHORIZED_TELEGRAM_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
 
 // Only initialize if Supabase is configured
@@ -45,23 +46,34 @@ function daysBetween(date1, date2) {
 }
 
 async function sendTelegram(text) {
-  if (!TELEGRAM_BOT_TOKEN || AUTHORIZED_TELEGRAM_IDS.length === 0) {
+  if (!TELEGRAM_BOT_TOKEN) {
     console.log("[automations] Telegram not configured, skipping notification");
     return;
   }
-  for (const chatId of AUTHORIZED_TELEGRAM_IDS) {
+
+  // Send to group chat if configured, otherwise individual DMs
+  const targets = TELEGRAM_GROUP_CHAT_ID
+    ? [TELEGRAM_GROUP_CHAT_ID]
+    : AUTHORIZED_TELEGRAM_IDS;
+
+  if (targets.length === 0) {
+    console.log("[automations] No Telegram targets configured");
+    return;
+  }
+
+  for (const chatId of targets) {
     try {
       await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
+        body: JSON.stringify({ chat_id: chatId, text }),
         signal: AbortSignal.timeout(10_000),
       });
     } catch (err) {
       console.error(`[automations] Telegram send failed for ${chatId}: ${err.message}`);
     }
   }
-  console.log(`[automations] Telegram sent to ${AUTHORIZED_TELEGRAM_IDS.length} user(s): ${text.slice(0, 80)}...`);
+  console.log(`[automations] Telegram sent to ${TELEGRAM_GROUP_CHAT_ID ? "group" : targets.length + " user(s)"}: ${text.slice(0, 80)}...`);
 }
 
 async function notifyVance(message) {
