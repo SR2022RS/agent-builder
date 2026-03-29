@@ -10,6 +10,15 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const VANCE_URL = process.env.VANCE_ENDPOINT || "";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID || "";
+const SHIPENGINE_API_KEY = process.env.SHIPENGINE_API_KEY || "";
+const DVTOL_SHIP_FROM = {
+  name: process.env.DVTOL_SHIP_FROM_NAME || "Dr. V's Tree of Life",
+  address_line1: process.env.DVTOL_SHIP_FROM_ADDRESS || "",
+  city_locality: process.env.DVTOL_SHIP_FROM_CITY || "",
+  state_province: process.env.DVTOL_SHIP_FROM_STATE || "",
+  postal_code: process.env.DVTOL_SHIP_FROM_ZIP || "",
+  country_code: "US",
+};
 const AUTHORIZED_TELEGRAM_IDS = (process.env.AUTHORIZED_TELEGRAM_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
 
 // Only initialize if Supabase is configured
@@ -203,7 +212,7 @@ async function runUspsTrackingCheck() {
     } else if (days >= 30) {
       alertType = "usps_label_expired";
       severity = "critical";
-      message = `Label EXPIRED for ${m.full_name} (${days} days). New Pirate Ship label required immediately.`;
+      message = `Label EXPIRED for ${m.full_name} (${days} days). New shipping label required immediately.`;
     } else if (days >= 25) {
       alertType = "usps_label_urgent";
       severity = "urgent";
@@ -376,6 +385,91 @@ async function runDailyPipelineSummary() {
   return { active: active.length, pastThreshold: pastThreshold.length, completed: (completed || []).length };
 }
 
+// ─── 5. ShipEngine Label Creation ───────────────────────────────────────
+
+async function createShippingLabel(memberId) {
+  if (!SHIPENGINE_API_KEY) throw new Error("SHIPENGINE_API_KEY not set");
+  if (!DVTOL_SHIP_FROM.address_line1) throw new Error("DVTOL ship-from address not configured");
+
+  // Get member info for ship-to address
+  const { data: member, error } = await supabase
+    .from("members")
+    .select("*")
+    .eq("id", memberId)
+    .single();
+  if (error || !member) throw new Error(`Member not found: ${memberId}`);
+
+  // Member must have a physical address — pull from Supabase or Wix
+  const shipTo = {
+    name: member.full_name,
+    address_line1: member.address_line1 || "",
+    city_locality: member.city || "",
+    state_province: member.state || "",
+    postal_code: member.zip || "",
+    country_code: "US",
+  };
+
+  if (!shipTo.address_line1) {
+    throw new Error(`No address on file for ${member.full_name}. Cannot create label.`);
+  }
+
+  // Create label via ShipEngine
+  const res = await fetch("https://api.shipengine.com/v1/labels", {
+    method: "POST",
+    headers: {
+      "API-Key": SHIPENGINE_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      shipment: {
+        ship_to: shipTo,
+        ship_from: DVTOL_SHIP_FROM,
+        packages: [{ weight: { value: 4, unit: "ounce" } }],
+      },
+      service_code: "usps_first_class_mail",
+      label_format: "pdf",
+      label_download_type: "url",
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  const data = await res.json();
+
+  if (data.errors && data.errors.length > 0) {
+    throw new Error(`ShipEngine error: ${data.errors.map(e => e.message).join(", ")}`);
+  }
+
+  const labelUrl = data.label_download?.pdf || data.label_download?.href || "";
+  const trackingNumber = data.tracking_number || "";
+
+  // Update member record with tracking info
+  await supabase.from("members").update({
+    usps_tracking_number: trackingNumber,
+    usps_status: "not_shipped",
+    label_created_at: new Date().toISOString(),
+  }).eq("id", memberId);
+
+  // Log to usps_tracking table
+  await supabase.from("usps_tracking").insert({
+    member_id: memberId,
+    tracking_number: trackingNumber,
+    label_provider: "shipengine",
+    status: "label_created",
+    label_created_at: new Date().toISOString(),
+    last_checked_at: new Date().toISOString(),
+  });
+
+  // Notify group chat
+  await sendTelegram(
+    `📦 USPS label created for ${member.full_name} (${member.tier}).\n` +
+    `Tracking: ${trackingNumber}\nLabel: ${labelUrl}\n` +
+    `Janail — attach this label to the Agreement + SOF email.`
+  );
+
+  console.log(`[automations] Label created for ${member.full_name}: ${trackingNumber}`);
+  return { member_id: memberId, tracking_number: trackingNumber, label_url: labelUrl };
+}
+
 // ─── Express Routes ─────────────────────────────────────────────────────
 
 export function registerAutomations(app, requireBearerAuth) {
@@ -425,12 +519,26 @@ export function registerAutomations(app, requireBearerAuth) {
     }
   });
 
+  // ShipEngine label creation
+  app.post("/api/automation/create-label", requireBearerAuth, async (req, res) => {
+    const { member_id } = req.body;
+    if (!member_id) return res.status(400).json({ error: "member_id is required" });
+    try {
+      const result = await createShippingLabel(member_id);
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Status endpoint
   app.get("/api/automation/status", (_req, res) => {
     res.json({
       enabled: true,
       supabase: !!supabase,
       vanceUrl: VANCE_URL ? "configured" : "not_set",
+      shipEngine: SHIPENGINE_API_KEY ? "configured" : "not_set",
+      telegram: TELEGRAM_BOT_TOKEN ? (TELEGRAM_GROUP_CHAT_ID ? "group_chat" : "individual_dms") : "not_set",
       schedules: {
         uspsCheck: "every 4 hours",
         thresholdCheck: "every 30 minutes",
