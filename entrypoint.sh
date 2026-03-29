@@ -31,12 +31,7 @@ if [ -f "$CONFIG_FILE" ]; then
     "
   fi
 
-  # Remove GHL plugin from persistent extensions (not used by DVTOL)
-  GHL_EXT="${OPENCLAW_STATE_DIR:-\$HOME/.openclaw}/extensions/gohighlevel"
-  if [ -d "$GHL_EXT" ]; then
-    echo "[entrypoint] Removing unused GoHighLevel plugin..."
-    rm -rf "$GHL_EXT"
-  fi
+  # GHL plugin lives in extensions/gohighlevel/ — activated by GHL_PIT_TOKEN env var
 fi
 
 # Copy DVTOL workspace files from /data/workspace if they exist
