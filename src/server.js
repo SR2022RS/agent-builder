@@ -7,6 +7,7 @@ import path from "node:path";
 import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
+import { registerAutomations } from "./automations.js";
 
 // Railway commonly sets PORT=8080 for HTTP services.
 const PORT = Number.parseInt(process.env.PORT ?? "8080", 10);
@@ -1377,6 +1378,9 @@ proxy.on("proxyReqWs", (proxyReq, req, socket, options, head) => {
   console.log(`[proxy-event] WebSocket proxyReqWs event fired for ${req.url}`);
   console.log(`[proxy-event] Headers:`, JSON.stringify(proxyReq.getHeaders()));
 });
+
+// ─── DVTOL Automations (pipeline monitoring, USPS tracking, daily summary) ───
+registerAutomations(app, requireBearerAuth);
 
 app.use(async (req, res) => {
   // If not configured, force users to /setup for any non-setup routes.
