@@ -440,6 +440,32 @@ app.use(express.json({ limit: "1mb" }));
 // Minimal health endpoint for Railway.
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
 
+// Emergency config patch — MUST be before any middleware that touches the gateway
+app.post("/setup/api/patch-config", (req, res) => {
+  const a = req.headers.authorization;
+  if (!SETUP_PASSWORD || !a) return res.status(401).json({ error: "Unauthorized" });
+  const p = Buffer.from(a.replace(/^Basic\s+/i, ""), "base64").toString().split(":").pop();
+  if (p !== SETUP_PASSWORD) return res.status(401).json({ error: "Invalid password" });
+  try {
+    const cfgPath = configPath();
+    if (!fs.existsSync(cfgPath)) return res.status(404).json({ ok: false, error: "No config file" });
+    const config = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    const patches = req.body || {};
+    for (const [key, value] of Object.entries(patches)) {
+      const parts = key.split(".");
+      let obj = config;
+      for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) obj[parts[i]] = {}; obj = obj[parts[i]]; }
+      obj[parts[parts.length - 1]] = value;
+    }
+    fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
+    console.log(`[patch-config] Patched: ${Object.keys(patches).join(", ")}`);
+    return res.json({ ok: true, patched: Object.keys(patches) });
+  } catch (err) {
+    console.error("[patch-config]", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Serve static files for setup wizard
 app.get("/setup/app.js", requireSetupAuth, (_req, res) => {
   res.type("application/javascript");
@@ -988,41 +1014,7 @@ app.post("/setup/api/pairing/approve", requireSetupAuth, async (req, res) => {
     .json({ ok: r.code === 0, output: r.output });
 });
 
-// Emergency config patch — fixes config file directly without starting gateway
-// Uses inline auth (no requireSetupAuth) to avoid any async gateway dependency
-app.post("/setup/api/patch-config", (req, res) => {
-  // Inline basic auth
-  const a = req.headers.authorization;
-  if (!SETUP_PASSWORD || !a) return res.status(401).json({ error: "Unauthorized" });
-  const p = Buffer.from(a.replace(/^Basic\s+/i, ""), "base64").toString().split(":").pop();
-  if (p !== SETUP_PASSWORD) return res.status(401).json({ error: "Invalid password" });
-  try {
-    const cfgPath = configPath();
-    if (!fs.existsSync(cfgPath)) {
-      return res.status(404).json({ ok: false, error: "Config file not found" });
-    }
-    const config = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
-    const patches = req.body || {};
-
-    // Apply patches using dot notation
-    for (const [key, value] of Object.entries(patches)) {
-      const parts = key.split(".");
-      let obj = config;
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (!obj[parts[i]]) obj[parts[i]] = {};
-        obj = obj[parts[i]];
-      }
-      obj[parts[parts.length - 1]] = value;
-    }
-
-    fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
-    console.log(`[patch-config] Patched config keys: ${Object.keys(patches).join(", ")}`);
-    res.json({ ok: true, patched: Object.keys(patches) });
-  } catch (err) {
-    console.error("[patch-config] error:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
+// patch-config is registered earlier (right after healthz) to avoid gateway dependency
 
 app.post("/setup/api/restart", requireSetupAuth, async (_req, res) => {
   // Restart the gateway without deleting config. Useful when Telegram
