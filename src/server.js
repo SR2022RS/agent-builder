@@ -230,47 +230,39 @@ async function startGateway() {
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
-  // ─── GoHighLevel Plugin Registration ────────────────────────────────
-  // Register the GHL plugin (REST API based, no MCP transport needed).
-  // The plugin reads GHL_API_KEY and GHL_LOCATION_ID from env vars.
+  // ─── Clean stale plugin references ────────────────────────────────
+  // Remove any leftover GHL/composio plugin config that causes log floods
   try {
     const config = JSON.parse(fs.readFileSync(configPath(), "utf8"));
     let dirty = false;
-
-    // Remove old MCP-based GHL config (caused gateway hangs)
+    if (config.plugins) {
+      if (config.plugins.allow) {
+        const before = config.plugins.allow.length;
+        config.plugins.allow = config.plugins.allow.filter(p => p !== "gohighlevel" && p !== "composio");
+        if (config.plugins.allow.length !== before) dirty = true;
+      }
+      if (config.plugins.entries) {
+        for (const key of ["gohighlevel", "composio"]) {
+          if (config.plugins.entries[key]) { delete config.plugins.entries[key]; dirty = true; }
+        }
+      }
+    }
+    if (config.tools?.alsoAllow) {
+      const before = config.tools.alsoAllow.length;
+      config.tools.alsoAllow = config.tools.alsoAllow.filter(t => t !== "gohighlevel");
+      if (config.tools.alsoAllow.length !== before) dirty = true;
+    }
     if (config.mcp?.servers?.gohighlevel) {
       delete config.mcp.servers.gohighlevel;
       if (Object.keys(config.mcp.servers).length === 0) delete config.mcp;
       dirty = true;
     }
-
-    // Register the gohighlevel plugin
-    config.plugins = config.plugins || {};
-    config.plugins.allow = config.plugins.allow || [];
-    if (!config.plugins.allow.includes("gohighlevel")) {
-      config.plugins.allow.push("gohighlevel");
-      dirty = true;
-    }
-    config.plugins.entries = config.plugins.entries || {};
-    if (!config.plugins.entries.gohighlevel) {
-      config.plugins.entries.gohighlevel = { enabled: true };
-      dirty = true;
-    }
-
-    // Also allow the plugin in tools
-    config.tools = config.tools || {};
-    config.tools.alsoAllow = config.tools.alsoAllow || [];
-    if (!config.tools.alsoAllow.includes("gohighlevel")) {
-      config.tools.alsoAllow.push("gohighlevel");
-      dirty = true;
-    }
-
     if (dirty) {
       fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
-      console.log(`[gateway] ✓ GoHighLevel plugin registered in config`);
+      console.log(`[gateway] ✓ Cleaned stale plugin references from config`);
     }
   } catch (err) {
-    console.warn(`[gateway] GHL plugin registration skipped: ${err.message}`);
+    console.warn(`[gateway] Plugin cleanup skipped: ${err.message}`);
   }
 
   // ─── Fix Telegram channel policies ──────────────────────────────────
@@ -815,16 +807,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
       // Connects the agent to GoHighLevel's official MCP endpoint via
       // `openclaw mcp set` (v2026.3.22+) so it can manage contacts,
       // conversations, calendars, pipelines, payments, social, etc.
-      const ghlToken = (payload.ghlPrivateToken || process.env.GHL_PRIVATE_TOKEN || process.env.GHL_ACCOUNT_TOKEN || process.env.GHL_API_KEY || "").trim();
-      const ghlLocationId = (payload.ghlLocationId || process.env.GHL_LOCATION_ID || "").trim();
-
-      if (ghlToken && ghlLocationId) {
-        console.log(`[ghl] GoHighLevel credentials detected (location: ${ghlLocationId.slice(0, 8)}...)`);
-        extra += `\n[ghl] ✓ GoHighLevel connected via plugin (location: ${ghlLocationId})\n`;
-        extra += `[ghl] ℹ Using REST API plugin (not MCP) for direct GHL access\n`;
-      } else if (ghlToken || ghlLocationId) {
-        extra += `\n[ghl] ⚠ Skipped — need both Private Token AND Location ID to connect GoHighLevel\n`;
-      }
+      // GHL plugin removed for DVTOL agents — not needed
 
       const channelsHelp = await runCmd(
         OPENCLAW_NODE,
