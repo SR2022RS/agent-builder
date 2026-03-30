@@ -8,6 +8,7 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 import { registerAutomations } from "./automations.js";
+import { extractUsageAndLog, logAgentAction } from "./action-logger.js";
 
 // Railway commonly sets PORT=8080 for HTTP services.
 const PORT = Number.parseInt(process.env.PORT ?? "8080", 10);
@@ -1200,6 +1201,14 @@ app.post("/api/route/:agent", async (req, res) => {
     });
     const data = await response.json();
     res.json({ agent: agent.name, routed: true, response: data });
+
+    // Log delegation (fire-and-forget)
+    logAgentAction({
+      agent_role: (process.env.AGENT_ROLE || "vance").toLowerCase(),
+      action_type: "delegation",
+      description: `Delegated to ${agent.name}: ${(req.body.task || "").slice(0, 150)}`,
+      input_data: { delegated_to: agentId },
+    }).catch(() => {});
   } catch (err) {
     console.error(`[route] ${agent.name} error:`, err.message);
     res.status(502).json({ error: `${agent.name} unreachable`, detail: err.message });
@@ -1241,6 +1250,14 @@ app.post("/api/route", async (req, res) => {
     });
     const data = await response.json();
     res.json({ agent: matched.name, routed: true, matchedOn: matchedId, response: data });
+
+    // Log auto-routed delegation (fire-and-forget)
+    logAgentAction({
+      agent_role: (process.env.AGENT_ROLE || "vance").toLowerCase(),
+      action_type: "delegation",
+      description: `Auto-routed to ${matched.name}: ${task.slice(0, 150)}`,
+      input_data: { delegated_to: matchedId, auto_routed: true },
+    }).catch(() => {});
   } catch (err) {
     res.json({ routed: false, agent: "VANCE", reason: `${matched.name} unreachable`, error: err.message });
   }
@@ -1303,6 +1320,13 @@ app.post("/task", requireBearerAuth, async (req, res) => {
     } else {
       res.json(data);
     }
+
+    // Log to agent_actions (fire-and-forget)
+    const agentRole = (process.env.AGENT_ROLE || "unknown").toLowerCase();
+    extractUsageAndLog(agentRole, task || "direct task", data, {
+      action_type: "query",
+      member_id: inputs?.memberId || null,
+    }).catch(() => {});
   } catch (err) {
     console.error("[task]", err.message);
     res.status(502).json({ error: "Task execution failed", detail: err.message });

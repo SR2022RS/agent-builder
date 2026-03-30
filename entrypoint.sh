@@ -44,6 +44,15 @@ if [ -d "$WORKSPACE_SRC" ] && ls "$WORKSPACE_SRC"/*.md > /dev/null 2>&1; then
   echo "[entrypoint] Workspace files loaded"
 fi
 
+# Overlay custom src files from persistent volume (uploaded via /api/deploy-file)
+# This lets agents run custom server.js + action-logger without forking the template
+CUSTOM_SRC="/data/src"
+if [ -d "$CUSTOM_SRC" ] && ls "$CUSTOM_SRC"/*.js > /dev/null 2>&1; then
+  echo "[entrypoint] Loading custom src files from $CUSTOM_SRC..."
+  cp -f "$CUSTOM_SRC"/*.js /app/src/ 2>/dev/null || true
+  ls "$CUSTOM_SRC"/*.js 2>/dev/null | while read -r f; do echo "  + $(basename "$f")"; done
+fi
+
 # Start the server (handles gateway lifecycle)
 node src/server.js &
 SERVER_PID=$!
