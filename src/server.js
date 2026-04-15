@@ -186,6 +186,45 @@ async function startGateway() {
       delete rawCfg.heartbeat;
       migrated = true;
     }
+    // Strip `description` off agent entries — OpenClaw v2026.3.24+ rejects it
+    // as `agents.list.N: Unrecognized key: "description"`. Keep id/name/workspace.
+    if (Array.isArray(rawCfg.agents?.list)) {
+      for (const agent of rawCfg.agents.list) {
+        if (agent && typeof agent === "object" && "description" in agent) {
+          delete agent.description;
+          console.log(`[gateway] Stripped legacy description from agents.list entry ${agent.id || "<no id>"}`);
+          migrated = true;
+        }
+      }
+    }
+    // Ensure gateway.mode is set — OpenClaw v2026.3.24+ blocks gateway start
+    // with "gateway.mode is unset; gateway start will be blocked." when absent.
+    // Default to "local" since every DVTOL agent runs the gateway on loopback.
+    if (rawCfg.gateway && typeof rawCfg.gateway === "object" && rawCfg.gateway.mode === undefined) {
+      rawCfg.gateway.mode = "local";
+      console.log(`[gateway] Set missing gateway.mode = "local" (default for loopback)`);
+      migrated = true;
+    }
+    // Drop dangling bindings — if a binding points at a channel account that
+    // doesn't exist in channels.*.accounts, the validator returns
+    // "bindings.N: Invalid input". Clean them up here.
+    if (Array.isArray(rawCfg.bindings) && rawCfg.bindings.length > 0) {
+      const kept = rawCfg.bindings.filter((b) => {
+        if (!b || typeof b !== "object") return false;
+        const { channel, accountId } = b;
+        if (!channel || !accountId) return false;
+        const accounts = rawCfg.channels?.[channel]?.accounts;
+        if (!accounts || !accounts[accountId]) {
+          console.log(`[gateway] Dropping dangling binding ${channel}.${accountId} (no matching account)`);
+          return false;
+        }
+        return true;
+      });
+      if (kept.length !== rawCfg.bindings.length) {
+        rawCfg.bindings = kept;
+        migrated = true;
+      }
+    }
     if (migrated) {
       fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
       console.log(`[gateway] ✓ Legacy config migrated`);
