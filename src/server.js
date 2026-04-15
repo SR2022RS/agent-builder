@@ -169,6 +169,23 @@ async function startGateway() {
       }
       migrated = true;
     }
+    // Migrate legacy top-level `heartbeat` → `agents.defaults.heartbeat` (OpenClaw v2026.3.24+).
+    // Pre-migration configs have `{ "heartbeat": { "every": "30m" } }` at root; the newer
+    // validator rejects this as a legacy key and the gateway exits code=1 at boot.
+    if (rawCfg.heartbeat !== undefined) {
+      console.log(`[gateway] Migrating legacy top-level heartbeat → agents.defaults.heartbeat`);
+      const legacyHeartbeat = rawCfg.heartbeat;
+      if (legacyHeartbeat && typeof legacyHeartbeat === "object") {
+        rawCfg.agents = rawCfg.agents || {};
+        rawCfg.agents.defaults = rawCfg.agents.defaults || {};
+        rawCfg.agents.defaults.heartbeat = {
+          ...(rawCfg.agents.defaults.heartbeat || {}),
+          ...legacyHeartbeat,
+        };
+      }
+      delete rawCfg.heartbeat;
+      migrated = true;
+    }
     if (migrated) {
       fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
       console.log(`[gateway] ✓ Legacy config migrated`);
