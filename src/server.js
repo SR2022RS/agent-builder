@@ -147,15 +147,31 @@ async function startGateway() {
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
 
   // Migrate legacy mcpServers (camelCase) → mcp.servers (OpenClaw v2026.3.22+ format)
+  // Also migrate legacy gateway.auth: "token" (string) → { mode: "token" } (object)
   try {
     const rawCfg = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    let migrated = false;
     if (rawCfg.mcpServers) {
       console.log(`[gateway] Migrating legacy mcpServers → mcp.servers`);
       rawCfg.mcp = rawCfg.mcp || {};
       rawCfg.mcp.servers = { ...(rawCfg.mcp.servers || {}), ...rawCfg.mcpServers };
       delete rawCfg.mcpServers;
+      migrated = true;
+    }
+    if (rawCfg.gateway && typeof rawCfg.gateway.auth === "string") {
+      console.log(`[gateway] Migrating legacy gateway.auth "${rawCfg.gateway.auth}" (string) → { mode: "${rawCfg.gateway.auth}" }`);
+      const legacyMode = rawCfg.gateway.auth;
+      const legacyToken = typeof rawCfg.gateway.token === "string" ? rawCfg.gateway.token : undefined;
+      rawCfg.gateway.auth = { mode: legacyMode };
+      if (legacyToken !== undefined) {
+        rawCfg.gateway.auth.token = legacyToken;
+        delete rawCfg.gateway.token;
+      }
+      migrated = true;
+    }
+    if (migrated) {
       fs.writeFileSync(configPath(), JSON.stringify(rawCfg, null, 2));
-      console.log(`[gateway] ✓ Legacy mcpServers migrated`);
+      console.log(`[gateway] ✓ Legacy config migrated`);
     }
 
     // Fix Telegram allowFrom — required when dmPolicy is "open"
@@ -242,7 +258,13 @@ async function startGateway() {
     if (configToken !== OPENCLAW_GATEWAY_TOKEN) {
       console.warn(`[gateway] ⚠ Token mismatch — patching config file directly`);
       config.gateway = config.gateway || {};
-      config.gateway.auth = config.gateway.auth || {};
+      // Guard against legacy gateway.auth: "token" (string) — must be an object
+      // before we can assign `.token`. The migration block earlier normally
+      // handles this, but defend here in case the read-back slipped through.
+      if (typeof config.gateway.auth !== "object" || config.gateway.auth === null) {
+        const legacyMode = typeof config.gateway.auth === "string" ? config.gateway.auth : "token";
+        config.gateway.auth = { mode: legacyMode };
+      }
       config.gateway.auth.token = OPENCLAW_GATEWAY_TOKEN;
       fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
       console.log(`[gateway] ✓ Token patched directly in config file`);
