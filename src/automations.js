@@ -11,6 +11,9 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const VANCE_URL = process.env.VANCE_ENDPOINT || "";
+const NOVA_ENDPOINT = process.env.NOVA_ENDPOINT || "";
+const BRIDGE_ENDPOINT = process.env.BRIDGE_ENDPOINT || "";
+const ECHO_ENDPOINT = process.env.ECHO_ENDPOINT || "";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID || "";
 const GHL_API_KEY = process.env.GHL_PIT_TOKEN || process.env.GHL_PRIVATE_TOKEN || process.env.GHL_API_KEY || "";
@@ -476,6 +479,63 @@ async function createShippingLabel(memberId) {
   return { member_id: memberId, tracking_number: trackingNumber, label_url: labelUrl };
 }
 
+// ─── Heartbeat Poller ───────────────────────────────────────────────────
+// Every 5 min: log VANCE's own heartbeat + fetch NOVA/BRIDGE/ECHO /heartbeat
+// endpoints and write rows to agent_heartbeats. Powers the Agent Status
+// cards on the DVTOL portal at /admin/agents.
+
+const HEARTBEAT_PEERS = [
+  { name: "nova", endpoint: NOVA_ENDPOINT },
+  { name: "bridge", endpoint: BRIDGE_ENDPOINT },
+  { name: "echo", endpoint: ECHO_ENDPOINT },
+];
+
+async function logHeartbeat(agentName, status, message) {
+  const { error } = await supabase
+    .from("agent_heartbeats")
+    .insert({ agent_name: agentName, status, message: message ?? null });
+  if (error) {
+    console.warn(`[heartbeat] insert failed for ${agentName}: ${error.message}`);
+  }
+}
+
+async function probePeer(peer) {
+  if (!peer.endpoint) {
+    return { status: "offline", message: `${peer.name.toUpperCase()}_ENDPOINT not configured` };
+  }
+  try {
+    const res = await fetch(`${peer.endpoint.replace(/\/$/, "")}/heartbeat`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) {
+      return { status: "offline", message: `HTTP ${res.status}` };
+    }
+    let body = null;
+    try { body = await res.json(); } catch { body = null; }
+    const reported = typeof body?.status === "string" ? body.status.toLowerCase() : "ok";
+    const status = reported === "degraded" ? "degraded" : "ok";
+    const message = typeof body?.message === "string" ? body.message.slice(0, 500) : null;
+    return { status, message };
+  } catch (err) {
+    const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    const reason = isTimeout
+      ? "timeout after 5s"
+      : err instanceof Error ? err.message.slice(0, 200) : "unknown error";
+    return { status: "offline", message: reason };
+  }
+}
+
+async function runHeartbeatPulse() {
+  // VANCE logs its own heartbeat first — if this function is firing, VANCE is alive.
+  await logHeartbeat("vance", "ok", null);
+  const results = await Promise.all(HEARTBEAT_PEERS.map(probePeer));
+  await Promise.all(
+    HEARTBEAT_PEERS.map((peer, i) => logHeartbeat(peer.name, results[i].status, results[i].message))
+  );
+  return { agents: ["vance", ...HEARTBEAT_PEERS.map((p) => p.name)], results: ["ok", ...results.map((r) => r.status)] };
+}
+
 // ─── Express Routes ─────────────────────────────────────────────────────
 
 export function registerAutomations(app, requireBearerAuth) {
@@ -506,6 +566,10 @@ export function registerAutomations(app, requireBearerAuth) {
 
   app.post("/api/automation/daily-summary", requireBearerAuth, async (_req, res) => {
     try { res.json({ ok: true, ...await runDailyPipelineSummary() }); } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post("/api/automation/heartbeat-pulse", requireBearerAuth, async (_req, res) => {
+    try { res.json({ ok: true, ...await runHeartbeatPulse() }); } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   app.post("/api/automation/create-label", requireBearerAuth, async (req, res) => {
@@ -539,6 +603,10 @@ export function registerAutomations(app, requireBearerAuth) {
     try { await runUspsTrackingCheck(); } catch (err) { console.error("[automations] USPS check failed:", err.message); }
   }, 4 * 60 * 60 * 1000);
 
+  setInterval(async () => {
+    try { await runHeartbeatPulse(); } catch (err) { console.error("[automations] Heartbeat pulse failed:", err.message); }
+  }, 5 * 60 * 1000);
+
   let lastSummaryDate = "";
   setInterval(async () => {
     const now = new Date();
@@ -557,9 +625,17 @@ export function registerAutomations(app, requireBearerAuth) {
     } catch (err) { console.error("[automations] Initial check failed:", err.message); }
   }, 30_000);
 
+  setTimeout(async () => {
+    try {
+      console.log("[automations] Running initial heartbeat pulse...");
+      await runHeartbeatPulse();
+    } catch (err) { console.error("[automations] Initial heartbeat pulse failed:", err.message); }
+  }, 10_000);
+
   console.log("[automations] All schedules registered");
   console.log("[automations]   - Stage thresholds: every 30 min → GHL email");
   console.log("[automations]   - USPS tracking: every 4 hours → GHL email");
   console.log("[automations]   - Daily summary: 7:00 AM EST → GHL email");
+  console.log("[automations]   - Heartbeat pulse: every 5 min → agent_heartbeats");
   console.log("[automations]   - Wix webhook: POST /webhook/wix-payment → Telegram");
 }
