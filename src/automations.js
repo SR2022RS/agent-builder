@@ -603,9 +603,17 @@ export function registerAutomations(app, requireBearerAuth) {
     try { await runUspsTrackingCheck(); } catch (err) { console.error("[automations] USPS check failed:", err.message); }
   }, 4 * 60 * 60 * 1000);
 
-  setInterval(async () => {
-    try { await runHeartbeatPulse(); } catch (err) { console.error("[automations] Heartbeat pulse failed:", err.message); }
-  }, 5 * 60 * 1000);
+  // Heartbeat poller — only runs on the agent that has all peer endpoints configured (VANCE).
+  // Other agents (NOVA/BRIDGE/ECHO) lack peer URLs, so they'd otherwise write garbage heartbeats
+  // claiming to be vance + reporting siblings as "offline". Gating prevents the cross-pollution.
+  const IS_HEARTBEAT_POLLER = !!(NOVA_ENDPOINT && BRIDGE_ENDPOINT && ECHO_ENDPOINT);
+  if (IS_HEARTBEAT_POLLER) {
+    setInterval(async () => {
+      try { await runHeartbeatPulse(); } catch (err) { console.error("[automations] Heartbeat pulse failed:", err.message); }
+    }, 5 * 60 * 1000);
+  } else {
+    console.log("[automations] Heartbeat poller SKIPPED (peer endpoints not configured — not the VANCE service)");
+  }
 
   let lastSummaryDate = "";
   setInterval(async () => {
@@ -625,12 +633,14 @@ export function registerAutomations(app, requireBearerAuth) {
     } catch (err) { console.error("[automations] Initial check failed:", err.message); }
   }, 30_000);
 
-  setTimeout(async () => {
-    try {
-      console.log("[automations] Running initial heartbeat pulse...");
-      await runHeartbeatPulse();
-    } catch (err) { console.error("[automations] Initial heartbeat pulse failed:", err.message); }
-  }, 10_000);
+  if (IS_HEARTBEAT_POLLER) {
+    setTimeout(async () => {
+      try {
+        console.log("[automations] Running initial heartbeat pulse...");
+        await runHeartbeatPulse();
+      } catch (err) { console.error("[automations] Initial heartbeat pulse failed:", err.message); }
+    }, 10_000);
+  }
 
   console.log("[automations] All schedules registered");
   console.log("[automations]   - Stage thresholds: every 30 min → GHL email");
