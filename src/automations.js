@@ -556,6 +556,15 @@ async function runOutreachDigest() {
     .eq("status", "submitted");
   const awaitingCount = awaitingRes.count ?? 0;
 
+  // Most recent application (freshness signal)
+  const lastSubRes = await supabase
+    .from("scout_submissions")
+    .select("submitted_at, scout_opportunities(event_name)")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastSub = lastSubRes.data;
+
   // Next outreach = earliest upcoming approved opportunity with a deadline
   const nextOppRes = await supabase
     .from("scout_opportunities")
@@ -589,6 +598,12 @@ async function runOutreachDigest() {
     `• ${awaitingCount} total awaiting reply`,
     "",
   ];
+
+  if (lastSub?.submitted_at) {
+    const lastEventName = lastSub.scout_opportunities?.event_name || "(unknown)";
+    lines.push(`Last sent: ${fmtDate(lastSub.submitted_at)} — ${lastEventName}`);
+    lines.push("");
+  }
 
   if (nextOpp) {
     lines.push(`Next outreach: ${fmtDate(nextOpp.deadline)}`);
