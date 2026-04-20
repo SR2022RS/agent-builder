@@ -14,6 +14,8 @@ const VANCE_URL = process.env.VANCE_ENDPOINT || "";
 const NOVA_ENDPOINT = process.env.NOVA_ENDPOINT || "";
 const BRIDGE_ENDPOINT = process.env.BRIDGE_ENDPOINT || "";
 const ECHO_ENDPOINT = process.env.ECHO_ENDPOINT || "";
+// Comma-separated E.164 phone numbers for outreach digest SMS (Mon/Thu 9 AM EST)
+const OUTREACH_DIGEST_PHONES = (process.env.OUTREACH_DIGEST_PHONES || "").split(",").map(s => s.trim()).filter(Boolean);
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID || "";
 const GHL_API_KEY = process.env.GHL_PIT_TOKEN || process.env.GHL_PRIVATE_TOKEN || process.env.GHL_API_KEY || "";
@@ -479,6 +481,154 @@ async function createShippingLabel(memberId) {
   return { member_id: memberId, tracking_number: trackingNumber, label_url: labelUrl };
 }
 
+// ─── Outreach Digest (SMS via GHL, Mon/Thu 9 AM EST) ────────────────────
+// Sends a 2x/week SMS digest to OUTREACH_DIGEST_PHONES with scout activity:
+// applications sent, replies, awaiting-reply count, next outreach, next follow-up.
+
+async function upsertGhlContact(phone) {
+  const res = await fetch("https://services.leadconnectorhq.com/contacts/upsert", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${GHL_API_KEY}`,
+      Version: "2021-07-28",
+    },
+    body: JSON.stringify({ locationId: GHL_LOCATION_ID, phone }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.contact?.id) {
+    throw new Error(`upsert failed: ${res.status} ${JSON.stringify(data).slice(0, 180)}`);
+  }
+  return data.contact.id;
+}
+
+async function sendGhlSms(contactId, message) {
+  const res = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${GHL_API_KEY}`,
+      Version: "2021-04-15",
+    },
+    body: JSON.stringify({ type: "SMS", contactId, message }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`SMS failed: ${res.status} ${JSON.stringify(data).slice(0, 180)}`);
+  }
+  return data;
+}
+
+function fmtDate(d, opts = { month: "short", day: "numeric" }) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString("en-US", opts); } catch { return "—"; }
+}
+
+async function runOutreachDigest() {
+  if (!supabase || OUTREACH_DIGEST_PHONES.length === 0 || !GHL_API_KEY || !GHL_LOCATION_ID) {
+    console.log("[automations] Outreach digest skipped (missing SUPABASE/GHL/OUTREACH_DIGEST_PHONES config)");
+    return { skipped: true };
+  }
+
+  const now = new Date();
+  const est = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const isMonday = est.getDay() === 1;
+  const daysBack = isMonday ? 4 : 3; // Mon looks back to last Thu, Thu looks back to last Mon
+
+  const since = new Date(est);
+  since.setDate(since.getDate() - daysBack);
+
+  // Applications sent since last digest
+  const recentSubsRes = await supabase
+    .from("scout_submissions")
+    .select("status, submitted_at")
+    .gte("submitted_at", since.toISOString());
+  const recentSubs = recentSubsRes.data || [];
+  const sentCount = recentSubs.length;
+  const repliedCount = recentSubs.filter(s => s.status === "accepted" || s.status === "declined").length;
+
+  // Total currently awaiting reply
+  const awaitingRes = await supabase
+    .from("scout_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "submitted");
+  const awaitingCount = awaitingRes.count ?? 0;
+
+  // Next outreach = earliest upcoming approved opportunity with a deadline
+  const nextOppRes = await supabase
+    .from("scout_opportunities")
+    .select("event_name, deadline, category")
+    .eq("status", "approved")
+    .not("deadline", "is", null)
+    .order("deadline", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const nextOpp = nextOppRes.data;
+
+  // Next follow-up = earliest unsent follow_up_due
+  const nextFollowUpRes = await supabase
+    .from("scout_submissions")
+    .select("submitted_at, follow_up_due, scout_opportunities(event_name)")
+    .eq("follow_up_sent", false)
+    .not("follow_up_due", "is", null)
+    .order("follow_up_due", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const nextFollowUp = nextFollowUpRes.data;
+
+  // Format SMS
+  const headerDate = est.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const lines = [
+    `DVTOL Outreach — ${headerDate}`,
+    "",
+    `Since last digest:`,
+    `• ${sentCount} applications sent`,
+    `• ${repliedCount} replies received`,
+    `• ${awaitingCount} total awaiting reply`,
+    "",
+  ];
+
+  if (nextOpp) {
+    lines.push(`Next outreach: ${fmtDate(nextOpp.deadline)}`);
+    lines.push(`  → ${nextOpp.event_name}${nextOpp.category ? ` (${nextOpp.category})` : ""}`);
+  } else {
+    lines.push("Next outreach: —");
+  }
+
+  if (nextFollowUp?.follow_up_due) {
+    const eventName = nextFollowUp.scout_opportunities?.event_name || "(unknown)";
+    lines.push(`Next follow-up: ${fmtDate(nextFollowUp.follow_up_due)}`);
+    lines.push(`  → ${eventName} (submitted ${fmtDate(nextFollowUp.submitted_at)})`);
+  } else {
+    lines.push("Next follow-up: —");
+  }
+
+  lines.push("");
+  lines.push("Full detail: dvtol-system.vercel.app/outreach");
+  const message = lines.join("\n");
+
+  console.log(`[automations] Outreach digest message:\n${message}`);
+
+  // Send to each recipient. Upsert contact first (idempotent — returns existing ID if phone already in GHL).
+  const results = [];
+  for (const phone of OUTREACH_DIGEST_PHONES) {
+    const last4 = `***${phone.slice(-4)}`;
+    try {
+      const contactId = await upsertGhlContact(phone);
+      await sendGhlSms(contactId, message);
+      console.log(`[automations] Outreach digest SMS sent to ${last4}`);
+      results.push({ phone: last4, ok: true });
+    } catch (err) {
+      console.error(`[automations] Outreach digest SMS failed for ${last4}: ${err.message}`);
+      results.push({ phone: last4, ok: false, error: err.message.slice(0, 100) });
+    }
+  }
+
+  return { sent: results.filter(r => r.ok).length, results };
+}
+
 // ─── Heartbeat Poller ───────────────────────────────────────────────────
 // Every 5 min: log VANCE's own heartbeat + fetch NOVA/BRIDGE/ECHO /heartbeat
 // endpoints and write rows to agent_heartbeats. Powers the Agent Status
@@ -568,6 +718,10 @@ export function registerAutomations(app, requireBearerAuth) {
     try { res.json({ ok: true, ...await runDailyPipelineSummary() }); } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  app.post("/api/automation/outreach-digest", requireBearerAuth, async (_req, res) => {
+    try { res.json({ ok: true, ...await runOutreachDigest() }); } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   app.post("/api/automation/heartbeat-pulse", requireBearerAuth, async (_req, res) => {
     try { res.json({ ok: true, ...await runHeartbeatPulse() }); } catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -626,6 +780,19 @@ export function registerAutomations(app, requireBearerAuth) {
     }
   }, 60 * 1000);
 
+  // Outreach digest: Mon + Thu @ 9 AM EST (2x/week)
+  let lastOutreachDigestDate = "";
+  setInterval(async () => {
+    const now = new Date();
+    const est = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const today = est.toISOString().split("T")[0];
+    const dow = est.getDay(); // 0=Sun..6=Sat
+    if ((dow === 1 || dow === 4) && est.getHours() === 9 && est.getMinutes() === 0 && lastOutreachDigestDate !== today) {
+      lastOutreachDigestDate = today;
+      try { await runOutreachDigest(); } catch (err) { console.error("[automations] Outreach digest failed:", err.message); }
+    }
+  }, 60 * 1000);
+
   setTimeout(async () => {
     try {
       console.log("[automations] Running initial threshold check...");
@@ -646,6 +813,7 @@ export function registerAutomations(app, requireBearerAuth) {
   console.log("[automations]   - Stage thresholds: every 30 min → GHL email");
   console.log("[automations]   - USPS tracking: every 4 hours → GHL email");
   console.log("[automations]   - Daily summary: 7:00 AM EST → GHL email");
+  console.log("[automations]   - Outreach digest: Mon + Thu 9 AM EST → GHL SMS");
   console.log("[automations]   - Heartbeat pulse: every 5 min → agent_heartbeats");
   console.log("[automations]   - Wix webhook: POST /webhook/wix-payment → Telegram");
 }
